@@ -1124,19 +1124,22 @@ function buildResumen() {
     return;
   }
 
-  // Regroup by aircraft registration
+  // Regroup by aircraft registration — pilotos go under one group
   const byReg = {};
   Object.entries(sections).forEach(([cat, items]) => {
     items.forEach(item => {
-      const key = item.reg;
+      const isPiloto = cat.includes('Pilotos');
+      const key = isPiloto ? '👨‍✈️ VIGENCIA PILOTOS' : item.reg;
       if (!byReg[key]) byReg[key] = [];
       byReg[key].push({...item, cat});
     });
   });
 
-  // Sort regs — fleet order first, then pilotos
+  // Sort regs — fleet order first, then pilotos group last
   const regOrder = fleet.map(a => a.reg);
   const sortedRegs = Object.keys(byReg).sort((a,b) => {
+    if (a.includes('VIGENCIA')) return 1;
+    if (b.includes('VIGENCIA')) return -1;
     const ia = regOrder.indexOf(a), ib = regOrder.indexOf(b);
     if (ia === -1 && ib === -1) return a.localeCompare(b);
     if (ia === -1) return 1;
@@ -1148,9 +1151,13 @@ function buildResumen() {
   sortedRegs.forEach(reg => {
     const items = byReg[reg];
     const total = items.length;
+    const isPilotoGroup = reg.includes('VIGENCIA');
+    const regLabel = isPilotoGroup
+      ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent2)">${reg}</span>`
+      : `<span style="font-family:'Orbitron',sans-serif;font-size:12px;color:var(--accent)">${reg}</span>`;
     html += `<div style="margin-bottom:20px">
       <div class="divider-label">
-        <span style="font-family:'Orbitron',sans-serif;font-size:12px;color:var(--accent)">${reg}</span>
+        ${regLabel}
         <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;background:rgba(204,17,34,0.1);color:var(--danger);padding:2px 8px;border-radius:2px">${total} pendiente${total>1?'s':''}</span>
       </div>
       <div class="card" style="padding:0">`;
@@ -1178,11 +1185,13 @@ function buildResumen() {
         </div>`;
       }
 
+      const rowLabel = isPilotoGroup
+        ? `<div style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;font-weight:700;color:var(--text)">${item.reg}</div>
+           <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);margin-top:2px">${item.item}</div>`
+        : `<div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">${item.cat}</div>
+           <div style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;font-weight:700;color:var(--text);margin-top:2px">${item.item}</div>`;
       html += `<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);background:${bg}">
-        <div>
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">${item.cat}</div>
-          <div style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;font-weight:700;color:var(--text);margin-top:2px">${item.item}</div>
-        </div>
+        <div>${rowLabel}</div>
         <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:${color};font-weight:700">${item.detail}</span>
         ${resolveHtml}
       </div>`;

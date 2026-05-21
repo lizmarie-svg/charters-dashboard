@@ -1147,6 +1147,9 @@ buildResumen();
 
 updateSummary();
 
+// Rebuild resumen after Firebase loads (delayed)
+setTimeout(() => { buildResumen(); updateSummary(); }, 3000);
+
 // Add ADMINISTRATIVOS at bottom of sidebar
 const adminHdr = document.createElement('div');
 adminHdr.className = 'sidebar-group-title';
@@ -1255,6 +1258,9 @@ if (db) {
     });
     updateSummary();
     buildResumen();
+    // Also rebuild resumen if it's currently visible
+    const resPanel = document.getElementById('panel-resumen');
+    if (resPanel && resPanel.classList.contains('active')) buildResumen();
     console.log('Firebase data loaded/updated');
   });
 

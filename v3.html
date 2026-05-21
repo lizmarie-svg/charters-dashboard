@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <!-- v=20260521-2 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fleet Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #d8e0e8;
+    --panel: #e8edf3;
+    --panel2: #dce4ec;
+    --border: #b0c0d0;
+    --accent: #0066cc;
+    --accent2: #0044aa;
+    --warn: #cc7700;
+    --danger: #cc1122;
+    --ok: #007744;
+    --text: #0a1628;
+    --muted: #5a7090;
+    --dim: #b0c4d8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-weight: 700; }
+  body {
+    background: var(--bg);
+    font-family: 'IBM Plex Sans', sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse 80% 40% at 50% -10%, rgba(0,100,200,0.05) 0%, transparent 70%),
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(180,200,220,0.4) 39px, rgba(180,200,220,0.4) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(180,200,220,0.2) 39px, rgba(180,200,220,0.2) 40px);
+  }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 36px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(8,12,20,0.9);
+    backdrop-filter: blur(10px);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    clip-path: polygon(20% 0%, 100% 0%, 80% 100%, 0% 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .logo-text { font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 3px; color: var(--accent); }
+  .logo-sub { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 2px; }
+  .clock { font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 300; color: var(--accent); letter-spacing: 2px; }
+  .date-line { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); text-align: right; letter-spacing: 1px; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); animation: pulse 2s infinite; }
+  .header-right { display: flex; align-items: center; gap: 14px; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+
+  .summary-bar { display: flex; gap: 1px; background: var(--border); border-bottom: 1px solid var(--border); }
+  .summary-item { flex:1; padding: 14px 20px; background: var(--panel); display: flex; align-items: center; gap: 12px; }
+  .summary-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); display: block; }
+  .summary-value { font-family: 'Orbitron', sans-serif; font-size: 22px; font-weight: 700; line-height: 1; }
+  .summary-icon { font-size: 22px; opacity: 0.7; }
+  .c-ok { color: var(--ok); } .c-warn { color: var(--warn); } .c-danger { color: var(--danger); } .c-accent { color: var(--accent); }
+
+  .main { display: flex; height: calc(100vh - 130px); }
+  .sidebar { width: 205px; min-width: 205px; border-right: 1px solid var(--border); background: var(--panel); overflow-y: auto; padding: 16px 0; }
+  .sidebar-title { font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); padding: 0 16px 12px; }
+  .sidebar-group-title { font-family: 'IBM Plex Mono', monospace; font-size: 8px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); padding: 14px 16px 6px; border-top: 1px solid var(--border); margin-top: 4px; }
+  .aircraft-tab { padding: 11px 16px; cursor: pointer; border-left: 3px solid transparent; transition: all 0.15s; position: relative; }
+  .aircraft-tab:hover { background: var(--panel2); }
+  .aircraft-tab.active { background: var(--panel2); border-left-color: var(--accent); }
+  .tab-reg { font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700; color: var(--text); letter-spacing: 1px; }
+  .aircraft-tab.active .tab-reg { color: var(--accent); }
+  .tab-model { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 2px; }
+  .tab-badge { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; }
+  .badge-ok { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+  .badge-warn { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+  .badge-danger { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+  .badge-empty { background: var(--dim); }
+
+  .content { flex:1; overflow-y: auto; padding: 28px 32px; }
+  .aircraft-panel { display: none; animation: fadeIn 0.2s ease; }
+  .aircraft-panel.active { display: block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none} }
+
+  .aircraft-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; }
+  .aircraft-reg { font-family: 'Orbitron', sans-serif; font-size: 34px; font-weight: 900; letter-spacing: 2px; color: var(--accent); line-height: 1; }
+  .aircraft-model-line { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); letter-spacing: 2px; margin-top: 4px; }
+
+  .status-select-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .status-select {
+    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 2px;
+    padding: 6px 14px; border-radius: 2px; cursor: pointer; outline: none;
+    text-transform: uppercase;
+  }
+  .status-select:focus { border-color: var(--accent); }
+
+  .divider-label {
+    font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--muted); margin: 20px 0 14px; display: flex; align-items: center; gap: 12px;
+  }
+  .divider-label::after { content:''; flex:1; height:1px; background: var(--border); }
+
+  .section-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .section-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 20px; position: relative; overflow: hidden;
+  }
+  .card::before { content:''; position: absolute; top:0; left:0; right:0; height:1px; background: linear-gradient(90deg, transparent, var(--accent2), transparent); opacity:0.4; }
+  .card-title { font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+  /* Editable fields */
+  .field-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
+  .field-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); white-space: nowrap; }
+  .field-input {
+    background: var(--panel2); border: 1px solid var(--dim); border-radius: 2px;
+    color: var(--text); font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700;
+    padding: 4px 8px; width: 120px; text-align: right; outline: none;
+    transition: border-color 0.15s;
+  }
+  .field-input:focus { border-color: var(--accent); }
+  .field-input::placeholder { color: var(--dim); font-size: 11px; font-family: 'IBM Plex Mono', monospace; font-weight: 400; }
+  .field-unit { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--muted); min-width: 22px; }
+
+  .progress-bar { height: 4px; background: var(--dim); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+  .progress-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
+  .fill-ok { background: linear-gradient(90deg, var(--ok), #00b380); }
+  .fill-warn { background: linear-gradient(90deg, var(--warn), #cc8800); }
+  .fill-danger { background: linear-gradient(90deg, var(--danger), #cc2233); }
+  .fill-empty { background: var(--dim); }
+  .pct-line { display: flex; justify-content: space-between; margin-top: 5px; }
+  .pct-text { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--muted); }
+
+  /* Maintenance rows */
+  .maint-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .maint-row:last-child { border-bottom: none; }
+  .maint-input {
+    background: var(--panel2); border: 1px solid var(--dim); border-radius: 2px;
+    color: var(--text); font-family: 'IBM Plex Sans', sans-serif; font-size: 11px;
+    padding: 5px 8px; outline: none; transition: border-color 0.15s; width: 100%;
+  }
+  .maint-input:focus { border-color: var(--accent); }
+  .maint-input::placeholder { color: var(--dim); }
+  .maint-date { font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+  .days-badge {
+    font-family: 'Orbitron', monospace; font-size: 10px; font-weight: 700;
+    padding: 3px 8px; border-radius: 2px; white-space: nowrap; min-width: 44px; text-align: center;
+  }
+  .days-ok { background: rgba(0,229,153,0.1); color: var(--ok); }
+  .days-warn { background: rgba(255,170,0,0.1); color: var(--warn); }
+  .days-danger { background: rgba(255,68,85,0.1); color: var(--danger); }
+  .days-empty { background: var(--dim); color: var(--muted); }
+
+  /* Doc rows */
+  .doc-row { display: grid; grid-template-columns: 1fr 130px auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .doc-row:last-child { border-bottom: none; }
+  .doc-name-input {
+    background: transparent; border: none; border-bottom: 1px solid var(--dim);
+    color: var(--text); font-family: 'IBM Plex Sans', sans-serif; font-size: 11px;
+    padding: 3px 0; outline: none; width: 100%;
+  }
+  .doc-name-input:focus { border-bottom-color: var(--accent); }
+  .doc-date-input {
+    background: var(--panel2); border: 1px solid var(--dim); border-radius: 2px;
+    color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    padding: 4px 6px; outline: none; width: 100%;
+  }
+  .doc-date-input:focus { border-color: var(--accent); }
+  .doc-status-sel {
+    background: var(--panel2); border: 1px solid var(--dim);
+    color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 9px;
+    padding: 4px 6px; border-radius: 2px; cursor: pointer; outline: none;
+    letter-spacing: 1px;
+  }
+  .add-row-btn {
+    margin-top: 10px; padding: 5px 12px;
+    background: transparent; border: 1px dashed var(--dim);
+    color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    letter-spacing: 1px; cursor: pointer; border-radius: 2px; width: 100%;
+    transition: all 0.15s;
+  }
+  .add-row-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .save-btn {
+    margin-top: 24px; padding: 10px 24px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    border: none; border-radius: 2px;
+    color: #000; font-family: 'Orbitron', sans-serif; font-size: 11px;
+    font-weight: 700; letter-spacing: 2px; cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .save-btn:hover { opacity: 0.85; }
+  .save-msg { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ok); margin-left: 12px; opacity: 0; transition: opacity 0.3s; }
+
+  /* Gauge */
+  .gauge-wrap { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 6px; padding: 6px 0; }
+  .gauge-svg { width: 120px; height: 70px; }
+  .gauge-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--muted); text-align: center; }
+  .gauge-val { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; text-align: center; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); cursor: pointer; }
+
+  /* Equipos de Emergencia */
+  .emerg-section { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+  .emerg-title {
+    font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--accent2); margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;
+  }
+  .emerg-title:hover { color: var(--accent); }
+  .emerg-body { display: block; }
+  .emerg-row { display: grid; grid-template-columns: 1fr 140px; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .emerg-row:last-child { border-bottom: none; }
+  .emerg-label { font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; font-weight: 700; color: var(--text); }
+</style>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    
+    <div>
+      
+      
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-dot"></div>
+    <div>
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="date-line" id="dateStr">--</div>
+    </div>
+  </div>
+</header>
+
+<div class="summary-bar">
+  <div class="summary-item">
+    <span class="summary-icon">✈</span>
+    <div><span class="summary-label">Flota Total</span><span class="summary-value c-accent" id="sum-total">10</span></div>
+  </div>
+  <div class="summary-item">
+    <span class="summary-icon">🟢</span>
+    <div><span class="summary-label">Operativas</span><span class="summary-value c-ok" id="sum-ok">—</span></div>
+  </div>
+  <div class="summary-item">
+    <span class="summary-icon">🔧</span>
+    <div><span class="summary-label">En Mantenimiento</span><span class="summary-value c-warn" id="sum-maint">—</span></div>
+  </div>
+  <div class="summary-item">
+    <span class="summary-icon">🔴</span>
+    <div><span class="summary-label">GROUNDED</span><span class="summary-value c-danger" id="sum-aog">—</span></div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="sidebar-title">Aeronaves</div>
+    <div id="sidebar-tabs"></div>
+  </div>
+  <div class="content" id="content-area"></div>
+</div>
+
+<script>
+
+// Firebase configuration
+let db = null;
+try {
+  const firebaseConfig = {
+    apiKey: "AIzaSyAiG4CnZt3i_QQcZe1yLb2F9CAhCj2WvTU",
+    authDomain: "charters-panama-dashboard.firebaseapp.com",
+    databaseURL: "https://charters-panama-dashboard-default-rtdb.firebaseio.com",
+    projectId: "charters-panama-dashboard",
+    storageBucket: "charters-panama-dashboard.firebasestorage.app",
+    messagingSenderId: "649874462308",
+    appId: "1:649874462308:web:a681e4e11519158deab171"
+  };
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+} catch(e) {
+  console.error('Firebase init error:', e);
+}
+
+// Firebase save/load
+function saveData(reg, data) {
+  try {
+    if (db) {
+      db.ref('fleet/' + reg.replace(/[^a-zA-Z0-9]/g, '_')).set(data)
+        .then(() => console.log('✅ Saved to Firebase:', reg))
+        .catch(e => console.error('❌ Firebase write error:', e.message, 'Data:', JSON.stringify(data).slice(0,200)));
+    }
+    return true;
+  } catch(e) {
+    console.error('Firebase save error:', e);
+    return false;
+  }
+}
+function loadData(reg) {
+  return null;
+}
+
+async function loadAllFromFirebase() {
+  if (!db) return {};
+  return new Promise((resolve) => {
+    db.ref('fleet').once('value', (snapshot) => {
+      resolve(snapshot.val() || {});
+    });
+  });
+}
+
+function savePilotos() {
+  if (db) db.ref('pilotos').set(pilotosData);
+}
+
+const fleet = [
+  { reg: "HP-1819BL", model: "Piper Cherokee",       type: "fixed" },
+  { reg: "HP-1907BL", model: "Piper Cherokee",       type: "fixed" },
+  { reg: "HP-1784BL", model: "Piper Warrior",        type: "fixed" },
+  { reg: "HP-1815BL", model: "Piper Warrior",        type: "fixed" },
+  { reg: "HP-1579BL", model: "Piper Archer",         type: "fixed" },
+  { reg: "HP-1930BL", model: "Grob G115",            type: "fixed" },
+  { reg: "HP-880BL",  model: "Piper Seneca",         type: "fixed" },
+  { reg: "HP-18BLM",  model: "Beechcraft King Air",  type: "fixed" },
+  { reg: "HP-11BL",   model: "Bell 206",             type: "rotor" },
+  { reg: "HP-1805BLM",model: "Piper Navajo",         type: "fixed" },
+];
+
+// Persistent data store (localStorage)
+// localStorage saveData removed - using Firebase only
+function loadData(reg) { return null; }
+
+// Default empty aircraft data
+function defaultAc(ac) {
+  return {
+    status: "",
+    serial: "", year: "",
+    horas_totales: "", horas_limite: "", fecha_50: "", fecha_100: "",
+    ciclos_totales: "", ciclos_limite: "",
+    horas_desde_revision: "", horas_hasta_revision: "",
+    mantenimiento: [
+      { nombre: "", fecha: "" },
+      { nombre: "", fecha: "" },
+      { nombre: "", fecha: "" },
+    ],
+    documentos: [
+      { nombre: "Certificado de Aeronavegabilidad", vence: "", estado: "" },
+      { nombre: "Matrícula", vence: "", estado: "" },
+      { nombre: "ELT", vence: "", estado: "" },
+      { nombre: "Pitot Estático", vence: "", estado: "" },
+      { nombre: "Transponder/Encoder", vence: "", estado: "" },
+      { nombre: "Peso y Balance", vence: "", estado: "" },
+
+    ]
+  };
+}
+
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.round((d - today) / 86400000);
+}
+function daysBadge(days) {
+  if (days === null) return '<span class="days-badge days-empty">—</span>';
+  if (days < 0) return `<span class="days-badge days-danger">VENC</span>`;
+  if (days <= 7) return `<span class="days-badge days-danger">${days}d</span>`;
+  if (days <= 30) return `<span class="days-badge days-warn">${days}d</span>`;
+  return `<span class="days-badge days-ok">${days}d</span>`;
+}
+function pct(v, l) {
+  const n = parseFloat(v), lim = parseFloat(l);
+  if (!n || !lim) return null;
+  return Math.min(100, Math.round(n / lim * 100));
+}
+// Vencimiento bar helpers (shows remaining hours, green < 70% used, red >= 70%)
+function updateHorasWarning(input, limit) {
+  const pct = parseFloat(input.value || 0) / limit * 100;
+  if (pct >= 80) {
+    input.style.background = 'rgba(204,17,34,0.12)';
+    input.style.borderColor = 'var(--danger)';
+  } else {
+    input.style.background = '';
+    input.style.borderColor = '';
+  }
+}
+
+function setFechaHoy(elemId) {
+  const el = document.getElementById(elemId);
+  if (el) el.textContent = new Date().toLocaleDateString('es-PA', {day:'2-digit',month:'2-digit',year:'numeric'});
+}
+
+function vencBarPct(hv, limit) {
+  const v = parseFloat(hv), l = parseFloat(limit) || 2000;
+  if (!v) return 100; // full bar green if no data
+  return Math.min(100, Math.round((l - v) / l * 100));
+}
+function vencBarCls(hv, limit) {
+  const v = parseFloat(hv), l = parseFloat(limit) || 2000;
+  if (!v) return 'fill-ok';
+  const used = v / l * 100;
+  return used >= 70 ? 'fill-danger' : 'fill-ok';
+}
+function vencBarLabel(hv, limit) {
+  const v = parseFloat(hv), l = parseFloat(limit) || 2000;
+  if (!v) return '—';
+  const rem = l - v;
+  const used = Math.round(v / l * 100);
+  return rem > 0 ? `Quedan ${rem} HV (${100-used}%)` : 'VENCIDO';
+}
+function updateVencBar(tipo, idx, val, limit) {
+  const pbId = tipo === 'motor' ? 'pb-motor-' : 'pb-helices-';
+  const pctId = tipo === 'motor' ? 'pct-motor-' : 'pct-helices-';
+  const pb = document.getElementById(pbId + idx);
+  const pct = document.getElementById(pctId + idx);
+  if (pb) { pb.style.width = vencBarPct(val, limit) + '%'; pb.className = 'progress-fill ' + vencBarCls(val, limit); }
+  if (pct) pct.textContent = vencBarLabel(val, limit);
+}
+
+function fillCls(p) {
+  if (p === null) return 'fill-empty';
+  if (p >= 90) return 'fill-danger';
+  if (p >= 70) return 'fill-warn';
+  return 'fill-ok';
+}
+function buildGauge(val, max, color) {
+  const v = parseFloat(val), m = parseFloat(max);
+  if (!v || !m) return `<svg class="gauge-svg" viewBox="0 0 120 70"><path d="M 5 65 A 55 55 0 0 1 115 65" fill="none" stroke="#243550" stroke-width="10" stroke-linecap="round"/></svg>`;
+  const p = Math.min(1, v / m);
+  const r=55, cx=60, cy=65;
+  const x2 = cx + r * Math.cos(Math.PI + p * Math.PI);
+  const y2 = cy + r * Math.sin(Math.PI + p * Math.PI);
+  const lg = p > 0.5 ? 1 : 0;
+  return `<svg class="gauge-svg" viewBox="0 0 120 70">
+    <path d="M 5 65 A 55 55 0 0 1 115 65" fill="none" stroke="#243550" stroke-width="10" stroke-linecap="round"/>
+    <path d="M 5 65 A 55 55 0 ${lg} 1 ${x2} ${y2}" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round" opacity="0.9"/>
+  </svg>`;
+}
+function gaugeColor(v, m) {
+  const p = parseFloat(v) / parseFloat(m);
+  if (!p || isNaN(p)) return '#243550';
+  if (p >= 0.85) return '#ff4455';
+  if (p >= 0.6) return '#ffaa00';
+  return '#00e599';
+}
+
+function buildPanel(ac, data, idx) {
+  const panel = document.createElement('div');
+  panel.className = 'aircraft-panel';
+  panel.id = 'panel-' + idx;
+
+  panel.innerHTML = `
+    <div class="aircraft-header">
+      <div>
+        <div class="aircraft-reg">${ac.reg}</div>
+        <div class="aircraft-model-line">${ac.model} ${ac.type === 'rotor' ? '· Helicóptero' : '· Ala Fija'}</div>
+      </div>
+      <div class="status-select-wrap">
+        <select class="status-select" id="status-${idx}">
+          <option value="" ${!data.status?'selected':''}>— Estado —</option>
+          <option value="operativo" ${data.status==='operativo'?'selected':''}>✅ Operativo</option>
+          <option value="mantenimiento" ${data.status==='mantenimiento'?'selected':''}>🔧 Mantenimiento</option>
+          <option value="aog" ${data.status==='aog'?'selected':''}>🔴 GROUNDED</option>
+        </select>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted)">S/N</span>
+          <input type="text" class="maint-input" id="serial-${idx}" value="${data.serial}" placeholder="N/A" style="width:110px;font-size:11px">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted)">AÑO</span>
+          <input type="text" class="maint-input" id="year-${idx}" value="${data.year}" placeholder="—" style="width:60px;font-size:11px;text-align:center">
+        </div>
+      </div>
+    </div>
+
+    <div class="divider-label">⏱ Horas de Vuelo & Ciclos</div>
+    <div class="section-grid">
+      <div class="card">
+        <div class="card-title">✈ Inspección 50 / 100 Horas</div>
+        <div class="field-row">
+          <span class="field-label">Horas 50 hrs</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="number" class="field-input" id="horas_totales-${idx}" value="${data.horas_totales}" placeholder="0" oninput="setFechaHoy('fecha50-${idx}');state[${idx}].fecha_50=new Date().toLocaleDateString('es-PA', {day:'2-digit',month:'2-digit',year:'numeric'});updateHorasWarning(this,50)" style="${parseFloat(data.horas_totales||0)/50*100>=80?'background:rgba(204,17,34,0.12);border-color:var(--danger)':''}">
+            <span class="field-unit">HV</span>
+          </div>
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);text-align:right;margin-bottom:8px">
+          Actualizado: <span id="fecha50-${idx}" style="color:var(--accent)">${data.fecha_50||'—'}</span>
+        </div>
+        <div class="field-row">
+          <span class="field-label">Horas 100 hrs</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="number" class="field-input" id="horas_limite-${idx}" value="${data.horas_limite}" placeholder="0" oninput="setFechaHoy('fecha100-${idx}');state[${idx}].fecha_100=new Date().toLocaleDateString('es-PA', {day:'2-digit',month:'2-digit',year:'numeric'});updateHorasWarning(this,100)" style="${parseFloat(data.horas_limite||0)/100*100>=80?'background:rgba(204,17,34,0.12);border-color:var(--danger)':''}">
+            <span class="field-unit">HV</span>
+          </div>
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);text-align:right;margin-bottom:8px">
+          Actualizado: <span id="fecha100-${idx}" style="color:var(--accent)">${data.fecha_100||'—'}</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill fill-empty" id="pb-horas-${idx}" style="width:${pct(data.horas_totales,data.horas_limite)||0}%"></div></div>
+        <div class="pct-line">
+          <span class="pct-text" id="pct-horas-${idx}">${pct(data.horas_totales,data.horas_limite) !== null ? pct(data.horas_totales,data.horas_limite)+'% del límite' : '—'}</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">⚙️ Vencimientos en Horas</div>
+        <div class="field-row">
+          <span class="field-label">Motor</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="number" class="field-input" id="ciclos_totales-${idx}" value="${data.ciclos_totales}" placeholder="0" oninput="updateVencBar('motor',${idx},this.value,2000);updateHorasWarning(this,2000)" style="${parseFloat(data.ciclos_totales||0)/2000*100>=80?'background:rgba(204,17,34,0.12);border-color:var(--danger)':''}">
+            <span class="field-unit" style="white-space:nowrap">HV / <span style="color:var(--accent)">2000 HV</span></span>
+          </div>
+        </div>
+        <div class="progress-bar" style="margin-bottom:4px">
+          <div id="pb-motor-${idx}" class="progress-fill ${vencBarCls(data.ciclos_totales,2000)}" style="width:${vencBarPct(data.ciclos_totales,2000)}%"></div>
+        </div>
+        <div class="pct-line" style="margin-bottom:10px">
+          <span class="pct-text" id="pct-motor-${idx}">${vencBarLabel(data.ciclos_totales,2000)}</span>
+        </div>
+        <div class="field-row">
+          <span class="field-label">Hélices</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="number" class="field-input" id="ciclos_limite-${idx}" value="${data.ciclos_limite}" placeholder="0" oninput="updateVencBar('helices',${idx},this.value,2000);updateHorasWarning(this,2000)" style="${parseFloat(data.ciclos_limite||0)/2000*100>=80?'background:rgba(204,17,34,0.12);border-color:var(--danger)':''}">
+            <span class="field-unit" style="white-space:nowrap">HV / <span style="color:var(--accent)">2000 HV</span></span>
+          </div>
+        </div>
+        <div class="progress-bar" style="margin-bottom:4px">
+          <div id="pb-helices-${idx}" class="progress-fill ${vencBarCls(data.ciclos_limite,2000)}" style="width:${vencBarPct(data.ciclos_limite,2000)}%"></div>
+        </div>
+        <div class="pct-line">
+          <span class="pct-text" id="pct-helices-${idx}">${vencBarLabel(data.ciclos_limite,2000)}</span>
+        </div>
+        <div style="display:none"><div id="pb-ciclos-${idx}"></div><span id="pct-ciclos-${idx}"></span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔧 Desde Última Revisión</div>
+        <div class="field-row">
+          <span class="field-label">HV desde revisión</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="number" class="field-input" id="horas_desde-${idx}" value="${data.horas_desde_revision}" placeholder="0" style="width:80px">
+            <span class="field-unit">HV</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="field-label">Intervalo revisión</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="number" class="field-input" id="horas_hasta-${idx}" value="${data.horas_hasta_revision}" placeholder="0" style="width:80px">
+            <span class="field-unit">HV</span>
+          </div>
+        </div>
+        <div class="gauge-wrap" id="gauge-wrap-${idx}">
+          ${buildGauge(data.horas_desde_revision, data.horas_hasta_revision, gaugeColor(data.horas_desde_revision, data.horas_hasta_revision))}
+          <div class="gauge-val" id="gauge-val-${idx}" style="color:${gaugeColor(data.horas_desde_revision, data.horas_hasta_revision)}">
+            ${data.horas_desde_revision && data.horas_hasta_revision ? data.horas_desde_revision+' / '+data.horas_hasta_revision+' HV' : '— / — HV'}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider-label">📅 Próximo Mantenimiento</div>
+    <div class="section-grid-2">
+      <div class="card">
+        <div class="card-title">📅 Tareas Programadas</div>
+        <div class="maint-row" style="border-bottom:1px solid var(--dim);padding-bottom:6px;margin-bottom:4px">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">TAREA</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">FECHA</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">DÍAS</span>
+        </div>
+        <div id="maint-list-${idx}"></div>
+        <button class="add-row-btn" onclick="addMaintRow(${idx})">+ Agregar tarea</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📋 Documentos & Certificaciones</div>
+        <div id="doc-list-${idx}"></div>
+        <button class="add-row-btn" onclick="addDocRow(${idx})">+ Agregar documento</button>
+        <div class="emerg-section">
+          <div class="emerg-title" onclick="toggleEmerg(${idx})">🚨 Equipos de Emergencia <span id="emerg-arrow-${idx}">▾</span></div>
+          <div class="emerg-body" id="emerg-body-${idx}">
+            <div class="emerg-row">
+              <span class="emerg-label">🦺 Salvavidas</span>
+              <input type="date" class="doc-date-input" id="emerg-salvavidas-${idx}" value="${data.emerg_salvavidas||''}" onchange="state[${idx}].emerg_salvavidas=this.value">
+            </div>
+            <div class="emerg-row">
+              <span class="emerg-label">🧯 Extintor</span>
+              <input type="date" class="doc-date-input" id="emerg-extintor-${idx}" value="${data.emerg_extintor||''}" onchange="state[${idx}].emerg_extintor=this.value">
+            </div>
+            <div class="emerg-row">
+              <span class="emerg-label">🚀 Flares</span>
+              <input type="date" class="doc-date-input" id="emerg-flares-${idx}" value="${data.emerg_flares||''}" onchange="state[${idx}].emerg_flares=this.value">
+            </div>
+            <div class="emerg-row">
+              <span class="emerg-label">🩺 Botiquín</span>
+              <input type="date" class="doc-date-input" id="emerg-botiquin-${idx}" value="${data.emerg_botiquin||''}" onchange="state[${idx}].emerg_botiquin=this.value">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;margin-top:8px">
+      <button class="save-btn" onclick="savePanel(${idx})">💾 GUARDAR</button>
+      <span class="save-msg" id="save-msg-${idx}">✓ Guardado</span>
+    </div>
+  `;
+
+  return panel;
+}
+
+function renderMaintList(idx, items) {
+  const container = document.getElementById('maint-list-' + idx);
+  container.innerHTML = '';
+  items.forEach((m, mi) => {
+    const days = daysUntil(m.fecha);
+    const row = document.createElement('div');
+    row.className = 'maint-row';
+    row.id = `maint-row-${idx}-${mi}`;
+    row.innerHTML = `
+      <input type="text" class="maint-input" placeholder="Tarea de mantenimiento" value="${m.nombre}" onchange="updateMaint(${idx},${mi},'nombre',this.value)">
+      <input type="date" class="maint-input maint-date" value="${m.fecha}" onchange="updateMaintDate(${idx},${mi},this.value)">
+      <span id="days-badge-${idx}-${mi}">${daysBadge(days)}</span>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function docStatusBadge(vence) {
+  if (!vence) return '<span style="font-family:IBM Plex Mono,monospace;font-size:9px;color:var(--muted)">—</span>';
+  const days = daysUntil(vence);
+  if (days === null) return '<span style="font-family:IBM Plex Mono,monospace;font-size:9px;color:var(--muted)">—</span>';
+  if (days < 0) return '<span style="display:inline-flex;align-items:center;gap:5px;font-family:IBM Plex Mono,monospace;font-size:9px;color:var(--danger);font-weight:700"><span style="width:8px;height:8px;border-radius:50%;background:var(--danger);display:inline-block"></span>VENCIDO</span>';
+  if (days <= 30) return `<span style="display:inline-flex;align-items:center;gap:5px;font-family:IBM Plex Mono,monospace;font-size:9px;color:var(--warn);font-weight:700"><span style="width:8px;height:8px;border-radius:50%;background:var(--warn);display:inline-block"></span>POR VENCER (${days}d)</span>`;
+  return '<span style="display:inline-flex;align-items:center;gap:5px;font-family:IBM Plex Mono,monospace;font-size:9px;color:var(--ok);font-weight:700"><span style="width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block"></span>VIGENTE</span>';
+}
+
+function renderDocList(idx, items) {
+  const container = document.getElementById('doc-list-' + idx);
+  container.innerHTML = '';
+  items.forEach((d, di) => {
+    const row = document.createElement('div');
+    row.className = 'doc-row';
+    row.innerHTML = `
+      <input type="text" class="doc-name-input" value="${d.nombre}" placeholder="Nombre del documento" onchange="updateDoc(${idx},${di},'nombre',this.value)">
+      <input type="date" class="doc-date-input" value="${d.vence}" onchange="updateDoc(${idx},${di},'vence',this.value);this.closest('.doc-row').querySelector('.doc-status-badge').innerHTML=docStatusBadge(this.value)">
+      <span class="doc-status-badge">${docStatusBadge(d.vence)}</span>
+    `;
+    container.appendChild(row);
+  });
+}
+
+// Preset statuses
+const presetStatus = {
+  "HP-1819BL":  "operativo",
+  "HP-1907BL":  "mantenimiento",
+  "HP-1784BL":  "aog",
+  "HP-1815BL":  "operativo",
+  "HP-1579BL":  "mantenimiento",
+  "HP-1930BL":  "operativo",
+  "HP-880BL":   "mantenimiento",
+  "HP-18BLM":   "operativo",
+  "HP-11BL":    "operativo",
+  "HP-1805BLM": "aog",
+};
+
+// Preset data per aircraft
+const presetData = {
+  "HP-1819BL": { ciclos_totales: "500", ciclos_limite: "1150" },
+};
+
+// State - initialized with presets, then overwritten by Firebase data
+const state = fleet.map((ac, idx) => {
+  const base = defaultAc(ac);
+  if (presetStatus[ac.reg]) base.status = presetStatus[ac.reg];
+  if (presetData[ac.reg]) Object.assign(base, presetData[ac.reg]);
+  return base;
+});
+
+function updateMaint(idx, mi, key, val) {
+  state[idx].mantenimiento[mi][key] = val;
+}
+function updateMaintDate(idx, mi, val) {
+  state[idx].mantenimiento[mi].fecha = val;
+  document.getElementById(`days-badge-${idx}-${mi}`).innerHTML = daysBadge(daysUntil(val));
+}
+function updateDoc(idx, di, key, val) {
+  state[idx].documentos[di][key] = val;
+}
+
+function addMaintRow(idx) {
+  state[idx].mantenimiento.push({ nombre: '', fecha: '' });
+  renderMaintList(idx, state[idx].mantenimiento);
+}
+function addDocRow(idx) {
+  state[idx].documentos.push({ nombre: '', vence: '', estado: '' });
+  renderDocList(idx, state[idx].documentos);
+}
+
+function toggleEmerg(idx) {
+  const body = document.getElementById('emerg-body-' + idx);
+  const arrow = document.getElementById('emerg-arrow-' + idx);
+  const visible = body.style.display !== 'none';
+  body.style.display = visible ? 'none' : 'block';
+  arrow.textContent = visible ? '▸' : '▾';
+}
+
+function getVal(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+
+function savePanel(idx) {
+  console.log('savePanel called for idx:', idx, 'reg:', fleet[idx].reg);
+  const d = state[idx];
+  const ac = fleet[idx];
+  d.status        = getVal('status-' + idx);
+  d.serial        = getVal('serial-' + idx);
+  d.year          = getVal('year-' + idx);
+  d.horas_totales = getVal('horas_totales-' + idx);
+  d.horas_limite  = getVal('horas_limite-' + idx);
+  d.fecha_50      = state[idx].fecha_50 || d.fecha_50 || '';
+  d.fecha_100     = state[idx].fecha_100 || d.fecha_100 || '';
+  d.ciclos_totales = getVal('ciclos_totales-' + idx);
+  d.ciclos_limite  = getVal('ciclos_limite-' + idx);
+  d.horas_desde_revision = getVal('horas_desde-' + idx);
+  d.horas_hasta_revision = getVal('horas_hasta-' + idx);
+  d.emerg_salvavidas = getVal('emerg-salvavidas-' + idx);
+  d.emerg_extintor   = getVal('emerg-extintor-' + idx);
+  d.emerg_flares     = getVal('emerg-flares-' + idx);
+  d.emerg_botiquin   = getVal('emerg-botiquin-' + idx);
+
+  // Update progress bars
+  const hp = pct(d.horas_totales, d.horas_limite);
+  const pb_h = document.getElementById('pb-horas-' + idx);
+  pb_h.style.width = (hp || 0) + '%';
+  pb_h.className = 'progress-fill ' + fillCls(hp);
+  document.getElementById('pct-horas-' + idx).textContent = hp !== null ? hp + '% del límite' : '—';
+
+  const cp = pct(d.ciclos_totales, d.ciclos_limite);
+  const pb_c = document.getElementById('pb-ciclos-' + idx);
+  pb_c.style.width = (cp || 0) + '%';
+  pb_c.className = 'progress-fill ' + fillCls(cp);
+  document.getElementById('pct-ciclos-' + idx).textContent = cp !== null ? cp + '% del límite' : '—';
+
+  // Update gauge
+  const gc = gaugeColor(d.horas_desde_revision, d.horas_hasta_revision);
+  const gw = document.getElementById('gauge-wrap-' + idx); if (gw) gw.innerHTML = buildGauge(d.horas_desde_revision, d.horas_hasta_revision, gc);
+  const gaugeVal = document.getElementById('gauge-val-' + idx);
+  if (gaugeVal) {
+    gaugeVal.textContent = d.horas_desde_revision && d.horas_hasta_revision
+      ? d.horas_desde_revision + ' / ' + d.horas_hasta_revision + ' HV' : '— / — HV';
+    gaugeVal.style.color = gc;
+  }
+
+  // Update sidebar badge
+  const badge = document.querySelector(`#sidebar-tabs .aircraft-tab[data-idx="${idx}"] .tab-badge`);
+  if (badge) {
+    badge.className = 'tab-badge ' + (d.status === 'operativo' ? 'badge-ok' : d.status === 'mantenimiento' ? 'badge-warn' : d.status === 'aog' ? 'badge-danger' : 'badge-empty');
+  }
+
+  // Clean data before saving - remove undefined/null/circular values
+  // Convert arrays to Firebase-compatible objects
+  const cleanData = {};
+  Object.keys(d).forEach(key => {
+    const val = d[key];
+    if (typeof val === 'function') return;
+    if (Array.isArray(val)) {
+      const obj = {};
+      val.forEach((item, i) => {
+        obj['i' + i] = {};
+        Object.keys(item).forEach(k => { obj['i' + i][k] = item[k] || ''; });
+      });
+      cleanData[key] = obj;
+    } else {
+      cleanData[key] = val === undefined || val === null ? '' : val;
+    }
+  });
+  console.log('Saving:', ac.reg, JSON.stringify(cleanData).slice(0,80));
+  const ok = saveData(ac.reg, cleanData);
+  updateSummary();
+
+  const msg = document.getElementById('save-msg-' + idx);
+  if (msg) {
+    msg.textContent = ok ? '✓ Guardado' : '✗ Error al guardar';
+    msg.style.color = ok ? 'var(--ok)' : 'var(--danger)';
+    msg.style.opacity = '1';
+    setTimeout(() => msg.style.opacity = '0', 2500);
+  }
+}
+
+function updateSummary() {
+  let ok=0, maint=0, aog=0;
+  state.forEach(d => {
+    if (d.status === 'operativo') ok++;
+    else if (d.status === 'mantenimiento') maint++;
+    else if (d.status === 'aog') aog++;
+  });
+  document.getElementById('sum-ok').textContent = ok || '—';
+  document.getElementById('sum-maint').textContent = maint || '—';
+  document.getElementById('sum-aog').textContent = aog || '—';
+}
+
+// Build everything
+const sidebarEl = document.getElementById('sidebar-tabs');
+const contentEl = document.getElementById('content-area');
+
+// RESUMEN tab at top
+const resumenTab = document.createElement('div');
+resumenTab.className = 'aircraft-tab active';
+resumenTab.innerHTML = '<div class="tab-reg" style="font-size:10px;color:var(--accent)">📊 RESUMEN</div>';
+resumenTab.addEventListener('click', () => {
+  document.querySelectorAll('.aircraft-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.aircraft-panel').forEach(p => p.classList.remove('active'));
+  resumenTab.classList.add('active');
+  document.getElementById('panel-resumen').classList.add('active');
+  buildResumen();
+});
+sidebarEl.insertBefore(resumenTab, sidebarEl.firstChild);
+
+fleet.forEach((ac, idx) => {
+  // Group headers
+  if (ac.reg === 'HP-1819BL') {
+    const hdr = document.createElement('div');
+    hdr.className = 'sidebar-group-title';
+    hdr.textContent = 'HP FLIGHT SCHOOL';
+    sidebarEl.appendChild(hdr);
+  }
+  if (ac.reg === 'HP-18BLM') {
+    const hdr = document.createElement('div');
+    hdr.className = 'sidebar-group-title';
+    hdr.textContent = 'HELICOPTEROS PERSONALES';
+    sidebarEl.appendChild(hdr);
+  }
+
+  const tab = document.createElement('div');
+  tab.className = 'aircraft-tab' + (idx === 0 ? ' active' : '');
+  tab.dataset.idx = idx;
+  const d = state[idx];
+  const badgeCls = d.status === 'operativo' ? 'badge-ok' : d.status === 'mantenimiento' ? 'badge-warn' : d.status === 'aog' ? 'badge-danger' : 'badge-empty';
+  tab.innerHTML = `
+    ${ac.img ? `<div style="width:100%;height:44px;margin-bottom:6px;overflow:hidden;position:relative">
+      <img src="${ac.img}" style="width:100%;height:100%;object-fit:cover;object-position:center;filter:brightness(0.9) contrast(1.1)">
+      <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,var(--panel) 100%)"></div>
+    </div>` : ''}
+    <div class="tab-reg">${ac.reg}</div>
+    <div class="tab-model">${ac.model}</div>
+    <div class="tab-badge ${badgeCls}"></div>
+  `;
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.aircraft-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.aircraft-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + idx).classList.add('active');
+  });
+  sidebarEl.appendChild(tab);
+
+  const panel = buildPanel(ac, d, idx);
+  contentEl.appendChild(panel);
+  renderMaintList(idx, d.mantenimiento);
+  renderDocList(idx, d.documentos);
+});
+
+// Build Vigencia Pilotos panel
+const pilotosPanel = document.createElement('div');
+pilotosPanel.className = 'aircraft-panel';
+pilotosPanel.id = 'panel-pilotos';
+pilotosPanel.innerHTML = `
+  <div class="aircraft-header">
+    <div>
+      <div class="aircraft-reg" >VIGENCIA PILOTOS</div>
+      <div class="aircraft-model-line">ADMINISTRATIVOS · LICENCIAS Y HABILITACIONES</div>
+    </div>
+  </div>
+  <div class="divider-label">✈ Pilotos</div>
+  <div class="card">
+    <div class="card-title">👨‍✈️ Registro de Vigencias</div>
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:8px;padding:8px 0;border-bottom:1px solid var(--dim)">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">NOMBRE DEL PILOTO</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">VEN. LICENCIA</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">DÍAS</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">VEN. CERT. MÉDICO</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">DÍAS</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)"></span>
+    </div>
+    <div id="pilotos-list"></div>
+    <button class="add-row-btn" onclick="addPilotoRow()">+ Agregar piloto</button>
+  </div>
+`;
+contentEl.appendChild(pilotosPanel);
+
+const pilotosData = [];
+function renderPilotos() {
+  const container = document.getElementById('pilotos-list');
+  container.innerHTML = '';
+  pilotosData.forEach((p, i) => {
+    const days = daysUntil(p.medico);
+    const row = document.createElement('div');
+    row.style = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)';
+    row.innerHTML = `
+      <input type="text" class="maint-input" placeholder="Nombre del piloto" value="${p.nombre}" onchange="pilotosData[${i}].nombre=this.value;savePilotos()">
+      <input type="date" class="maint-input" value="${p.licencia}" onchange="pilotosData[${i}].licencia=this.value;renderPilotos();savePilotos()">
+      <span>${daysBadge(daysUntil(p.licencia))}</span>
+      <input type="date" class="maint-input" value="${p.medico}" onchange="pilotosData[${i}].medico=this.value;renderPilotos();savePilotos()">
+      <span>${daysBadge(daysUntil(p.medico))}</span>
+      <button onclick="pilotosData.splice(${i},1);renderPilotos();savePilotos()" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:14px;padding:0">✕</button>
+    `;
+    container.appendChild(row);
+  });
+}
+function addPilotoRow() {
+  pilotosData.push({ nombre: '', licencia: '', medico: '' });
+  renderPilotos();
+}
+function savePilotos() {
+  try { localStorage.setItem('pilotos_data', JSON.stringify(pilotosData)); } catch(e) {}
+}
+renderPilotos();
+
+// Build Escuela panel
+const escuelaPanel = document.createElement('div');
+escuelaPanel.className = 'aircraft-panel';
+escuelaPanel.id = 'panel-escuela';
+escuelaPanel.innerHTML = `
+  <div class="aircraft-header">
+    <div>
+      <div class="aircraft-reg">ESCUELA</div>
+      <div class="aircraft-model-line">ADMINISTRATIVOS · HP FLIGHT SCHOOL</div>
+    </div>
+  </div>
+  <div class="divider-label">📚 Escuela</div>
+  <div class="card">
+    <div class="card-title">Próximamente...</div>
+  </div>
+`;
+contentEl.appendChild(escuelaPanel);
+
+// Build Empresa panel
+const empresaPanel = document.createElement('div');
+empresaPanel.className = 'aircraft-panel';
+empresaPanel.id = 'panel-empresa';
+empresaPanel.innerHTML = `
+  <div class="aircraft-header">
+    <div>
+      <div class="aircraft-reg">EMPRESA</div>
+      <div class="aircraft-model-line">ADMINISTRATIVOS · DOCUMENTOS EMPRESA</div>
+    </div>
+  </div>
+  <div class="divider-label">🏢 Empresa</div>
+  <div class="card">
+    <div class="card-title">Próximamente...</div>
+  </div>
+`;
+contentEl.appendChild(empresaPanel);
+
+// Build Resumen panel
+const resumenPanel = document.createElement('div');
+resumenPanel.className = 'aircraft-panel active';
+resumenPanel.id = 'panel-resumen';
+resumenPanel.innerHTML = `
+  <div style="margin-bottom:20px">
+    <div class="aircraft-reg">RESUMEN GENERAL</div>
+    <div class="aircraft-model-line">ALERTAS Y PRÓXIMOS VENCIMIENTOS</div>
+  </div>
+  <div id="resumen-content"><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);padding:20px 0">Cargando...</div></div>
+`;
+contentEl.insertBefore(resumenPanel, contentEl.firstChild);
+
+function buildResumen() {
+  const DAYS_WARN = 30;
+  const container = document.getElementById('resumen-content');
+  let sections = {};
+
+  // Helper to add alert
+  function addAlert(category, reg, item, detail, type) {
+    if (!sections[category]) sections[category] = [];
+    sections[category].push({ reg, item, detail, type });
+  }
+
+  // Check each aircraft
+  state.forEach((d, idx) => {
+    const reg = fleet[idx].reg;
+
+    // Documents & Certificaciones
+    if (d.documentos) {
+      d.documentos.forEach(doc => {
+        if (!doc.nombre || !doc.vence) return;
+        const days = daysUntil(doc.vence);
+        if (days !== null && days <= DAYS_WARN) {
+          addAlert('📋 Documentos & Certificaciones', reg, doc.nombre, days < 0 ? 'VENCIDO' : `Vence en ${days} días`, days < 0 ? 'danger' : 'warn');
+        }
+      });
+    }
+
+    // Equipos de emergencia
+    const emergs = { 'Salvavidas': d.emerg_salvavidas, 'Extintor': d.emerg_extintor, 'Flares': d.emerg_flares, 'Botiquín': d.emerg_botiquin };
+    Object.entries(emergs).forEach(([name, fecha]) => {
+      if (!fecha) return;
+      const days = daysUntil(fecha);
+      if (days !== null && days <= DAYS_WARN) {
+        addAlert('🚨 Equipos de Emergencia', reg, name, days < 0 ? 'VENCIDO' : `Vence en ${days} días`, days < 0 ? 'danger' : 'warn');
+      }
+    });
+
+    // Motor (horas) - warn when <= 20% remaining (>= 80% used of 2000)
+    if (d.ciclos_totales) {
+      const pctUsed = parseFloat(d.ciclos_totales) / 2000 * 100;
+      if (pctUsed >= 80) {
+        const rem = 2000 - parseFloat(d.ciclos_totales);
+        addAlert('⚙️ Vencimientos en Horas', reg, 'Motor', `Quedan ${rem} HV (${Math.round(100-pctUsed)}%)`, 'danger');
+      }
+    }
+
+    // Helices (horas)
+    if (d.ciclos_limite) {
+      const pctUsed = parseFloat(d.ciclos_limite) / 2000 * 100;
+      if (pctUsed >= 80) {
+        const rem = 2000 - parseFloat(d.ciclos_limite);
+        addAlert('⚙️ Vencimientos en Horas', reg, 'Hélices', `Quedan ${rem} HV (${Math.round(100-pctUsed)}%)`, 'danger');
+      }
+    }
+
+    // Inspección 50 hrs
+    if (d.horas_totales) {
+      const pctUsed = parseFloat(d.horas_totales) / 50 * 100;
+      if (pctUsed >= 80) {
+        const rem = 50 - parseFloat(d.horas_totales);
+        addAlert('✈ Inspecciones', reg, 'Insp. 50 hrs', `Quedan ${rem} HV (${Math.round(100-pctUsed)}%)`, 'danger');
+      }
+    }
+
+    // Inspección 100 hrs
+    if (d.horas_limite) {
+      const pctUsed = parseFloat(d.horas_limite) / 100 * 100;
+      if (pctUsed >= 80) {
+        const rem = 100 - parseFloat(d.horas_limite);
+        addAlert('✈ Inspecciones', reg, 'Insp. 100 hrs', `Quedan ${rem} HV (${Math.round(100-pctUsed)}%)`, 'danger');
+      }
+    }
+  });
+
+  // Check pilotos
+  pilotosData.forEach(p => {
+    if (!p.nombre) return;
+    if (p.licencia) {
+      const days = daysUntil(p.licencia);
+      if (days !== null && days <= DAYS_WARN) {
+        addAlert('👨‍✈️ Vigencia Pilotos', p.nombre, 'Licencia', days < 0 ? 'VENCIDA' : `Vence en ${days} días`, days < 0 ? 'danger' : 'warn');
+      }
+    }
+    if (p.medico) {
+      const days = daysUntil(p.medico);
+      if (days !== null && days <= DAYS_WARN) {
+        addAlert('👨‍✈️ Vigencia Pilotos', p.nombre, 'Cert. Médico', days < 0 ? 'VENCIDO' : `Vence en ${days} días`, days < 0 ? 'danger' : 'warn');
+      }
+    }
+  });
+
+  // Render
+  if (Object.keys(sections).length === 0) {
+    container.innerHTML = `<div style="text-align:center;padding:40px 0;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ok)">✅ Todo en orden — sin vencimientos próximos</div>`;
+    return;
+  }
+
+  let html = '';
+  Object.entries(sections).forEach(([cat, items]) => {
+    html += `<div style="margin-bottom:20px">
+      <div class="divider-label">${cat} <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;background:rgba(204,17,34,0.1);color:var(--danger);padding:2px 8px;border-radius:2px">${items.length} alerta${items.length>1?'s':''}</span></div>
+      <div class="card" style="padding:0">`;
+    items.forEach(item => {
+      const color = item.type === 'danger' ? 'var(--danger)' : 'var(--warn)';
+      const bg = item.type === 'danger' ? 'rgba(204,17,34,0.05)' : 'rgba(204,119,0,0.05)';
+      html += `<div style="display:grid;grid-template-columns:140px 1fr 1fr;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);background:${bg}">
+        <span style="font-family:'Orbitron',monospace;font-size:10px;color:var(--accent);font-weight:700">${item.reg}</span>
+        <span style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;font-weight:700;color:var(--text)">${item.item}</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:${color};font-weight:700">${item.detail}</span>
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+  container.innerHTML = html;
+}
+
+buildResumen();
+
+updateSummary();
+
+// Add ADMINISTRATIVOS at bottom of sidebar
+const adminHdr = document.createElement('div');
+adminHdr.className = 'sidebar-group-title';
+adminHdr.textContent = 'ADMINISTRATIVOS';
+sidebarEl.appendChild(adminHdr);
+
+// Vigencia Pilotos tab
+const pilotosTab = document.createElement('div');
+pilotosTab.className = 'aircraft-tab';
+pilotosTab.innerHTML = '<div class="tab-reg" style="font-size:10px">VIGENCIA PILOTOS</div>';
+pilotosTab.addEventListener('click', () => {
+  document.querySelectorAll('.aircraft-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.aircraft-panel').forEach(p => p.classList.remove('active'));
+  pilotosTab.classList.add('active');
+  document.getElementById('panel-pilotos').classList.add('active');
+});
+sidebarEl.appendChild(pilotosTab);
+
+// Escuela tab
+const escuelaTab = document.createElement('div');
+escuelaTab.className = 'aircraft-tab';
+escuelaTab.innerHTML = '<div class="tab-reg" style="font-size:10px">ESCUELA</div>';
+escuelaTab.addEventListener('click', () => {
+  document.querySelectorAll('.aircraft-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.aircraft-panel').forEach(p => p.classList.remove('active'));
+  escuelaTab.classList.add('active');
+  document.getElementById('panel-escuela').classList.add('active');
+});
+sidebarEl.appendChild(escuelaTab);
+
+// Empresa tab
+const empresaTab = document.createElement('div');
+empresaTab.className = 'aircraft-tab';
+empresaTab.innerHTML = '<div class="tab-reg" style="font-size:10px">EMPRESA</div>';
+empresaTab.addEventListener('click', () => {
+  document.querySelectorAll('.aircraft-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.aircraft-panel').forEach(p => p.classList.remove('active'));
+  empresaTab.classList.add('active');
+  document.getElementById('panel-empresa').classList.add('active');
+});
+sidebarEl.appendChild(empresaTab);
+
+// Clock
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('es-PA', { hour12: false });
+  document.getElementById('dateStr').textContent = now.toLocaleDateString('es-PA', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+}
+updateClock(); setInterval(updateClock, 1000);
+
+// Refresh a single aircraft panel from state
+function refreshPanel(idx) {
+  const d = state[idx];
+  const g = id => document.getElementById(id + idx);
+  const sv = (id, val) => { const el = g(id); if (el) el.value = val || ''; };
+  const st = (id, val) => { const el = g(id); if (el) el.textContent = val || '—'; };
+
+  sv('status-', d.status);
+  sv('horas_totales-', d.horas_totales);
+  sv('horas_limite-', d.horas_limite);
+  sv('ciclos_totales-', d.ciclos_totales);
+  sv('ciclos_limite-', d.ciclos_limite);
+  sv('horas_desde-', d.horas_desde_revision);
+  sv('horas_hasta-', d.horas_hasta_revision);
+  sv('emerg-salvavidas-', d.emerg_salvavidas);
+  sv('emerg-extintor-', d.emerg_extintor);
+  sv('emerg-flares-', d.emerg_flares);
+  sv('emerg-botiquin-', d.emerg_botiquin);
+  st('fecha50-', d.fecha_50);
+  st('fecha100-', d.fecha_100);
+
+  if (d.horas_totales) updateHorasWarning(g('horas_totales-'), 50);
+  if (d.horas_limite) updateHorasWarning(g('horas_limite-'), 100);
+  if (d.ciclos_totales) { updateVencBar('motor', idx, d.ciclos_totales, 2000); updateHorasWarning(g('ciclos_totales-'), 2000); }
+  if (d.ciclos_limite) { updateVencBar('helices', idx, d.ciclos_limite, 2000); updateHorasWarning(g('ciclos_limite-'), 2000); }
+
+  renderMaintList(idx, d.mantenimiento);
+  renderDocList(idx, d.documentos);
+
+  // Update sidebar badge
+  const tabs = document.querySelectorAll('#sidebar-tabs .aircraft-tab');
+  const tab = tabs[idx + 1]; // +1 because resumen tab is first
+  if (tab) {
+    const badge = tab.querySelector('.tab-badge');
+    if (badge) badge.className = 'tab-badge ' + (d.status === 'operativo' ? 'badge-ok' : d.status === 'mantenimiento' ? 'badge-warn' : d.status === 'aog' ? 'badge-danger' : 'badge-empty');
+  }
+}
+
+// Load all data from Firebase with real-time listener
+if (db) {
+  db.ref('fleet').on('value', (snapshot) => {
+    const firebaseData = snapshot.val() || {};
+    fleet.forEach((ac, idx) => {
+      const key = ac.reg.replace(/[^a-zA-Z0-9]/g, '_');
+      if (firebaseData[key]) {
+        const fbData = firebaseData[key];
+        // Convert Firebase objects back to arrays
+        ['mantenimiento','documentos'].forEach(arrKey => {
+          if (fbData[arrKey] && typeof fbData[arrKey] === 'object' && !Array.isArray(fbData[arrKey])) {
+            fbData[arrKey] = Object.keys(fbData[arrKey]).sort().map(k => fbData[arrKey][k]);
+          }
+        });
+        Object.assign(state[idx], fbData);
+        refreshPanel(idx);
+      }
+    });
+    updateSummary();
+    buildResumen();
+    console.log('Firebase data loaded/updated');
+  });
+
+  db.ref('pilotos').on('value', (snapshot) => {
+    const saved = snapshot.val();
+    if (saved && Array.isArray(saved)) {
+      pilotosData.length = 0;
+      saved.forEach(p => pilotosData.push(p));
+      renderPilotos();
+    }
+  });
+}
+</script>
+</body>
+</html>

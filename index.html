@@ -220,7 +220,7 @@
   }
   .emerg-title:hover { color: var(--accent); }
   .emerg-body { display: block; }
-  .emerg-row { display: grid; grid-template-columns: 1fr 140px; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .emerg-row { display: grid; grid-template-columns: 1fr 160px 110px; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
   .emerg-row:last-child { border-bottom: none; }
   .emerg-label { font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; font-weight: 700; color: var(--text); }
 
@@ -648,19 +648,23 @@ function buildPanel(ac, data, idx) {
           <div class="emerg-body" id="emerg-body-${idx}">
             <div class="emerg-row">
               <span class="emerg-label">🦺 Salvavidas</span>
-              <input type="date" class="doc-date-input" id="emerg-salvavidas-${idx}" value="${data.emerg_salvavidas||''}" onchange="state[${idx}].emerg_salvavidas=this.value">
+              <input type="date" class="doc-date-input" id="emerg-salvavidas-${idx}" value="${data.emerg_salvavidas||''}" onchange="state[${idx}].emerg_salvavidas=this.value;this.closest('.emerg-row').querySelector('.emerg-badge').innerHTML=docStatusBadge(this.value)">
+              <span class="emerg-badge">${docStatusBadge(data.emerg_salvavidas||'')}</span>
             </div>
             <div class="emerg-row">
               <span class="emerg-label">🧯 Extintor</span>
-              <input type="date" class="doc-date-input" id="emerg-extintor-${idx}" value="${data.emerg_extintor||''}" onchange="state[${idx}].emerg_extintor=this.value">
+              <input type="date" class="doc-date-input" id="emerg-extintor-${idx}" value="${data.emerg_extintor||''}" onchange="state[${idx}].emerg_extintor=this.value;this.closest('.emerg-row').querySelector('.emerg-badge').innerHTML=docStatusBadge(this.value)">
+              <span class="emerg-badge">${docStatusBadge(data.emerg_extintor||'')}</span>
             </div>
             <div class="emerg-row">
               <span class="emerg-label">🚀 Flares</span>
-              <input type="date" class="doc-date-input" id="emerg-flares-${idx}" value="${data.emerg_flares||''}" onchange="state[${idx}].emerg_flares=this.value">
+              <input type="date" class="doc-date-input" id="emerg-flares-${idx}" value="${data.emerg_flares||''}" onchange="state[${idx}].emerg_flares=this.value;this.closest('.emerg-row').querySelector('.emerg-badge').innerHTML=docStatusBadge(this.value)">
+              <span class="emerg-badge">${docStatusBadge(data.emerg_flares||'')}</span>
             </div>
             <div class="emerg-row">
               <span class="emerg-label">🩺 Botiquín</span>
-              <input type="date" class="doc-date-input" id="emerg-botiquin-${idx}" value="${data.emerg_botiquin||''}" onchange="state[${idx}].emerg_botiquin=this.value">
+              <input type="date" class="doc-date-input" id="emerg-botiquin-${idx}" value="${data.emerg_botiquin||''}" onchange="state[${idx}].emerg_botiquin=this.value;this.closest('.emerg-row').querySelector('.emerg-badge').innerHTML=docStatusBadge(this.value)">
+              <span class="emerg-badge">${docStatusBadge(data.emerg_botiquin||'')}</span>
             </div>
           </div>
         </div>
@@ -1147,18 +1151,19 @@ function buildResumen() {
     return ia - ib;
   });
 
-  let html = '';
+  // Build two-column grid layout
+  let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">';
   sortedRegs.forEach(reg => {
     const items = byReg[reg];
     const total = items.length;
     const isPilotoGroup = reg.includes('VIGENCIA');
     const regLabel = isPilotoGroup
-      ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent2)">${reg}</span>`
-      : `<span style="font-family:'Orbitron',sans-serif;font-size:12px;color:var(--accent)">${reg}</span>`;
-    html += `<div style="margin-bottom:20px">
-      <div class="divider-label">
+      ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent2)">${reg}</span>`
+      : `<span style="font-family:'Orbitron',sans-serif;font-size:11px;color:var(--accent)">${reg}</span>`;
+    html += `<div style="margin-bottom:4px">
+      <div class="divider-label" style="margin-bottom:8px">
         ${regLabel}
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;background:rgba(204,17,34,0.1);color:var(--danger);padding:2px 8px;border-radius:2px">${total} pendiente${total>1?'s':''}</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;background:rgba(204,17,34,0.1);color:var(--danger);padding:2px 6px;border-radius:2px">${total} pendiente${total>1?'s':''}</span>
       </div>
       <div class="card" style="padding:0">`;
 
@@ -1190,7 +1195,7 @@ function buildResumen() {
            <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);margin-top:2px">${item.item}</div>`
         : `<div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">${item.cat}</div>
            <div style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;font-weight:700;color:var(--text);margin-top:2px">${item.item}</div>`;
-      html += `<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);background:${bg}">
+      html += `<div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:7px 12px;border-bottom:1px solid var(--border);background:${bg}">
         <div>${rowLabel}</div>
         <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:${color};font-weight:700">${item.detail}</span>
         ${resolveHtml}
@@ -1198,6 +1203,7 @@ function buildResumen() {
     });
     html += `</div></div>`;
   });
+  html += '</div>';
   container.innerHTML = html;
 }
 

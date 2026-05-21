@@ -1339,6 +1339,14 @@ function refreshPanel(idx) {
   sv('emerg-extintor-', d.emerg_extintor);
   sv('emerg-flares-', d.emerg_flares);
   sv('emerg-botiquin-', d.emerg_botiquin);
+  // Update emerg badges
+  ['salvavidas','extintor','flares','botiquin'].forEach(e => {
+    const inp = document.getElementById('emerg-' + e + '-' + idx);
+    if (inp) {
+      const badge = inp.closest('.emerg-row') ? inp.closest('.emerg-row').querySelector('.emerg-badge') : null;
+      if (badge) badge.innerHTML = docStatusBadge(inp.value);
+    }
+  });
   st('fecha50-', d.fecha_50);
   st('fecha100-', d.fecha_100);
 

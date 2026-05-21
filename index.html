@@ -407,9 +407,9 @@ function defaultAc(ac) {
     ciclos_totales: "", ciclos_limite: "",
     horas_desde_revision: "", horas_hasta_revision: "",
     mantenimiento: [
-      { nombre: "", fecha: "" },
-      { nombre: "", fecha: "" },
-      { nombre: "", fecha: "" },
+      { nombre: "", fecha: "", resuelto: false, piezas: [] },
+      { nombre: "", fecha: "", resuelto: false, piezas: [] },
+      { nombre: "", fecha: "", resuelto: false, piezas: [] },
     ],
     documentos: [
       { nombre: "Certificado de Aeronavegabilidad", vence: "", estado: "" },
@@ -630,10 +630,12 @@ function buildPanel(ac, data, idx) {
     <div class="section-grid-2">
       <div class="card">
         <div class="card-title">📅 Tareas Programadas</div>
-        <div class="maint-row" style="border-bottom:1px solid var(--dim);padding-bottom:6px;margin-bottom:4px">
+        <div style="display:grid;grid-template-columns:1fr 150px 60px auto auto;gap:8px;border-bottom:1px solid var(--dim);padding-bottom:6px;margin-bottom:4px">
           <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">TAREA</span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">FECHA</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">FECHA INICIO</span>
           <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">DÍAS</span>
+          <span></span>
+          <span></span>
         </div>
         <div id="maint-list-${idx}"></div>
         <button class="add-row-btn" onclick="addMaintRow(${idx})">+ Agregar tarea</button>
@@ -680,21 +682,107 @@ function buildPanel(ac, data, idx) {
   return panel;
 }
 
+function diasTranscurridos(fechaStr) {
+  if (!fechaStr) return null;
+  const d = new Date(fechaStr);
+  if (isNaN(d)) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.round((today - d) / 86400000);
+}
+
+function estadoPiezaBadge(estado) {
+  if (estado === 'disponible') return '<span style="font-family:IBM Plex Mono,monospace;font-size:8px;padding:1px 6px;border-radius:2px;background:rgba(0,102,204,0.1);color:var(--accent)">DISPONIBLE</span>';
+  if (estado === 'pedida') return '<span style="font-family:IBM Plex Mono,monospace;font-size:8px;padding:1px 6px;border-radius:2px;background:rgba(204,119,0,0.1);color:var(--warn)">PEDIDA</span>';
+  if (estado === 'recibida') return '<span style="font-family:IBM Plex Mono,monospace;font-size:8px;padding:1px 6px;border-radius:2px;background:rgba(0,119,68,0.1);color:var(--ok)">RECIBIDA</span>';
+  return '<span style="font-family:IBM Plex Mono,monospace;font-size:8px;padding:1px 6px;border-radius:2px;background:var(--dim);color:var(--muted)">PENDIENTE</span>';
+}
+
 function renderMaintList(idx, items) {
   const container = document.getElementById('maint-list-' + idx);
+  if (!container) return;
   container.innerHTML = '';
+  if (!items || !items.length) return;
   items.forEach((m, mi) => {
-    const days = daysUntil(m.fecha);
-    const row = document.createElement('div');
-    row.className = 'maint-row';
-    row.id = `maint-row-${idx}-${mi}`;
-    row.innerHTML = `
-      <input type="text" class="maint-input" placeholder="Tarea de mantenimiento" value="${m.nombre}" onchange="updateMaint(${idx},${mi},'nombre',this.value)">
-      <input type="date" class="maint-input maint-date" value="${m.fecha}" onchange="updateMaintDate(${idx},${mi},this.value)">
-      <span id="days-badge-${idx}-${mi}">${daysBadge(days)}</span>
+    if (m.resuelto) return; // skip resolved tasks
+    const dias = diasTranscurridos(m.fecha);
+    const piezas = Array.isArray(m.piezas) ? m.piezas : [];
+    const wrap = document.createElement('div');
+    wrap.style = 'border-bottom:1px solid var(--border);padding:10px 0';
+    wrap.id = 'maint-wrap-' + idx + '-' + mi;
+
+    // Main row
+    const mainRow = document.createElement('div');
+    mainRow.style = 'display:grid;grid-template-columns:1fr 150px 60px auto auto;gap:8px;align-items:center;margin-bottom:6px';
+    mainRow.innerHTML = `
+      <input type="text" class="maint-input" placeholder="Tarea de mantenimiento" value="${m.nombre||''}" onchange="updateMaint(${idx},${mi},'nombre',this.value)">
+      <input type="date" class="maint-input" value="${m.fecha||''}" onchange="updateMaint(${idx},${mi},'fecha',this.value);renderMaintList(${idx},state[${idx}].mantenimiento)">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);font-weight:700;text-align:center">${dias !== null ? dias + 'd' : '—'}</span>
+      <button onclick="togglePiezas(${idx},${mi})" style="font-family:'IBM Plex Mono',monospace;font-size:8px;background:transparent;border:1px solid var(--border);border-radius:2px;padding:2px 7px;cursor:pointer;color:var(--muted)">🔩 Piezas</button>
+      <button onclick="resolverTarea(${idx},${mi})" style="font-family:'IBM Plex Mono',monospace;font-size:8px;background:rgba(0,119,68,0.1);border:1px solid var(--ok);border-radius:2px;padding:2px 7px;cursor:pointer;color:var(--ok)">✓ Resuelto</button>
     `;
-    container.appendChild(row);
+    wrap.appendChild(mainRow);
+
+    // Piezas section
+    const piezasDiv = document.createElement('div');
+    piezasDiv.id = 'piezas-' + idx + '-' + mi;
+    piezasDiv.style = 'display:none;margin-left:12px;margin-top:4px';
+
+    piezas.forEach((p, pi) => {
+      const pRow = document.createElement('div');
+      pRow.style = 'display:grid;grid-template-columns:1fr 100px auto;gap:6px;align-items:center;padding:4px 0;border-bottom:1px solid var(--dim)';
+      pRow.innerHTML = `
+        <input type="text" class="maint-input" placeholder="Nombre de la pieza" value="${p.nombre||''}" style="font-size:10px" onchange="updatePieza(${idx},${mi},${pi},'nombre',this.value)">
+        <select onchange="updatePieza(${idx},${mi},${pi},'estado',this.value)" style="font-family:'IBM Plex Mono',monospace;font-size:9px;padding:3px 6px;border:1px solid var(--border);border-radius:2px;background:var(--panel2);color:var(--text)">
+          <option value="disponible" ${(p.estado||'disponible')==='disponible'?'selected':''}>Disponible</option>
+          <option value="pedida" ${p.estado==='pedida'?'selected':''}>Pedida</option>
+          <option value="recibida" ${p.estado==='recibida'?'selected':''}>Recibida</option>
+        </select>
+        <button onclick="removePieza(${idx},${mi},${pi})" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:12px">✕</button>
+      `;
+      piezasDiv.appendChild(pRow);
+    });
+
+    const addPiezaBtn = document.createElement('button');
+    addPiezaBtn.className = 'add-row-btn';
+    addPiezaBtn.style = 'margin-top:4px;font-size:10px';
+    addPiezaBtn.textContent = '+ Agregar pieza';
+    addPiezaBtn.onclick = () => addPieza(idx, mi);
+    piezasDiv.appendChild(addPiezaBtn);
+    wrap.appendChild(piezasDiv);
+    container.appendChild(wrap);
   });
+}
+
+function togglePiezas(idx, mi) {
+  const d = document.getElementById('piezas-' + idx + '-' + mi);
+  if (d) d.style.display = d.style.display === 'none' ? 'block' : 'none';
+}
+
+function updatePieza(idx, mi, pi, key, val) {
+  if (!state[idx].mantenimiento[mi].piezas) state[idx].mantenimiento[mi].piezas = [];
+  state[idx].mantenimiento[mi].piezas[pi][key] = val;
+}
+
+function addPieza(idx, mi) {
+  if (!state[idx].mantenimiento[mi].piezas) state[idx].mantenimiento[mi].piezas = [];
+  state[idx].mantenimiento[mi].piezas.push({ nombre: '', estado: 'disponible' });
+  renderMaintList(idx, state[idx].mantenimiento);
+  // Re-open piezas section
+  setTimeout(() => {
+    const d = document.getElementById('piezas-' + idx + '-' + mi);
+    if (d) d.style.display = 'block';
+  }, 50);
+}
+
+function removePieza(idx, mi, pi) {
+  state[idx].mantenimiento[mi].piezas.splice(pi, 1);
+  renderMaintList(idx, state[idx].mantenimiento);
+}
+
+function resolverTarea(idx, mi) {
+  state[idx].mantenimiento[mi].resuelto = true;
+  savePanel(idx);
+  renderMaintList(idx, state[idx].mantenimiento);
 }
 
 function docStatusBadge(vence) {
@@ -760,7 +848,7 @@ function updateDoc(idx, di, key, val) {
 }
 
 function addMaintRow(idx) {
-  state[idx].mantenimiento.push({ nombre: '', fecha: '' });
+  state[idx].mantenimiento.push({ nombre: '', fecha: '', resuelto: false, piezas: [] });
   renderMaintList(idx, state[idx].mantenimiento);
 }
 function addDocRow(idx) {

@@ -640,6 +640,12 @@ function buildPanel(ac, data, idx) {
         <div id="maint-list-${idx}"></div>
         <button class="add-row-btn" onclick="addMaintRow(${idx})">+ Agregar tarea</button>
       </div>
+      <div class="card" style="margin-top:12px">
+        <div class="card-title">📖 Bitácora de Mantenimientos</div>
+        <div id="bitacora-list-${idx}">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);text-align:center;padding:8px 0">Sin registros</div>
+        </div>
+      </div>
 
       <div class="card">
         <div class="card-title">📋 Documentos & Certificaciones</div>
@@ -780,9 +786,54 @@ function removePieza(idx, mi, pi) {
 }
 
 function resolverTarea(idx, mi) {
+  const today = new Date().toLocaleDateString('es-PA', {day:'2-digit',month:'2-digit',year:'numeric'});
   state[idx].mantenimiento[mi].resuelto = true;
+  state[idx].mantenimiento[mi].fecha_resuelto = today;
   savePanel(idx);
   renderMaintList(idx, state[idx].mantenimiento);
+  renderBitacora(idx, state[idx].mantenimiento);
+}
+
+function renderBitacora(idx, items) {
+  const container = document.getElementById('bitacora-list-' + idx);
+  if (!container) return;
+  const resueltos = (items || []).filter(m => m.resuelto && m.nombre);
+  if (!resueltos.length) {
+    container.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);text-align:center;padding:8px 0">Sin registros</div>`;
+    return;
+  }
+  // Need original indices for delete
+  const allItems = items || [];
+  container.innerHTML = allItems.map((m, origIdx) => {
+    if (!m.resuelto || !m.nombre) return '';
+    const piezas = Array.isArray(m.piezas) ? m.piezas.filter(p => p.nombre) : [];
+    const diasTotal = m.fecha && m.fecha_resuelto ? (() => {
+      const ini = new Date(m.fecha);
+      const fin = new Date(m.fecha_resuelto.split('/').reverse().join('-'));
+      return isNaN(ini) || isNaN(fin) ? '—' : Math.round((fin-ini)/86400000) + 'd';
+    })() : '—';
+    return `<div style="padding:8px 12px;border-bottom:1px solid var(--border);background:rgba(0,119,68,0.03)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;font-weight:700;color:var(--text)">${m.nombre}</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">Inicio: ${m.fecha||'—'}</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">Duración: ${diasTotal}</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--ok);font-weight:700">✓ ${m.fecha_resuelto||'—'}</span>
+          <button onclick="eliminarBitacora(${idx},${origIdx})" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:14px;padding:0 4px" title="Eliminar registro">✕</button>
+        </div>
+      </div>
+      ${piezas.length ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);margin-top:2px">
+        Piezas: ${piezas.map(p => `<span style="margin-right:8px">${p.nombre} (${p.estado||'disponible'})</span>`).join('')}
+      </div>` : ''}
+    </div>`;
+  }).join('');
+  if (!container.innerHTML.trim()) container.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:9px;color:var(--muted);text-align:center;padding:8px 0">Sin registros</div>';
+}
+
+function eliminarBitacora(idx, mi) {
+  state[idx].mantenimiento.splice(mi, 1);
+  savePanel(idx);
+  renderBitacora(idx, state[idx].mantenimiento);
 }
 
 function docStatusBadge(vence) {
@@ -1014,6 +1065,7 @@ fleet.forEach((ac, idx) => {
   const panel = buildPanel(ac, d, idx);
   contentEl.appendChild(panel);
   renderMaintList(idx, d.mantenimiento);
+  renderBitacora(idx, d.mantenimiento);
   renderDocList(idx, d.documentos);
 });
 
@@ -1444,6 +1496,7 @@ function refreshPanel(idx) {
   if (d.ciclos_limite) { updateVencBar('helices', idx, d.ciclos_limite, 2000); updateHorasWarning(g('ciclos_limite-'), 2000); }
 
   renderMaintList(idx, d.mantenimiento);
+  renderBitacora(idx, d.mantenimiento);
   renderDocList(idx, d.documentos);
 
   // Update sidebar badge

@@ -223,6 +223,67 @@
   .emerg-row { display: grid; grid-template-columns: 1fr 140px; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
   .emerg-row:last-child { border-bottom: none; }
   .emerg-label { font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; font-weight: 700; color: var(--text); }
+
+  /* ===== MOBILE RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .summary-bar { flex-wrap: wrap; }
+    .summary-item { flex: 1 1 45%; padding: 10px 12px; }
+    .summary-value { font-size: 18px; }
+
+    .main { flex-direction: column; height: auto; }
+
+    .sidebar {
+      width: 100% !important;
+      min-width: 100% !important;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      padding: 8px 0;
+      display: flex;
+      flex-direction: row;
+      overflow-x: auto;
+      overflow-y: hidden;
+      white-space: nowrap;
+      max-height: none;
+      height: auto;
+    }
+    .sidebar-title { display: none; }
+    .sidebar-group-title { display: none; }
+    .aircraft-tab {
+      display: inline-block;
+      padding: 8px 12px;
+      border-left: none;
+      border-bottom: 3px solid transparent;
+      white-space: nowrap;
+      min-width: auto;
+    }
+    .aircraft-tab.active {
+      border-left: none;
+      border-bottom-color: var(--accent);
+    }
+    .tab-model { display: none; }
+    .tab-badge { position: static; transform: none; display: inline-block; margin-left: 4px; }
+
+    .content { padding: 12px; }
+
+    .aircraft-header { flex-direction: column; gap: 10px; }
+    .aircraft-reg { font-size: 22px; }
+
+    .section-grid { grid-template-columns: 1fr; }
+    .section-grid-2 { grid-template-columns: 1fr; }
+
+    .maint-row { grid-template-columns: 1fr 1fr auto; }
+    .doc-row { grid-template-columns: 1fr auto auto; }
+    .emerg-row { grid-template-columns: 1fr auto; }
+
+    .header { padding: 8px 12px; }
+    .logo-text { font-size: 10px; }
+    .clock { font-size: 13px; }
+  }
+
+  @media (max-width: 480px) {
+    .summary-item { flex: 1 1 100%; }
+    .aircraft-reg { font-size: 18px; }
+  }
 </style>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>

@@ -694,10 +694,10 @@ function buildPanel(ac, data, idx) {
       </div>
     </div>
 
-    <div class="divider-label">📅 Próximo Mantenimiento</div>
+    <div class="divider-label">🔧 Taller</div>
     <div class="section-grid-2">
       <div class="card">
-        <div class="card-title">📅 Tareas Programadas</div>
+        <div class="card-title">🔧 Pendientes de Taller</div>
         <div style="display:grid;grid-template-columns:1fr 150px 60px auto auto;gap:8px;border-bottom:1px solid var(--dim);padding-bottom:6px;margin-bottom:4px">
           <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">TAREA</span>
           <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">FECHA INICIO</span>
@@ -712,6 +712,20 @@ function buildPanel(ac, data, idx) {
         <div class="card-title">📖 Bitácora de Mantenimientos</div>
         <div id="bitacora-list-${idx}">
           <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);text-align:center;padding:8px 0">Sin registros</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="card-title">📦 Seguimiento de Pedidos</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 80px 60px;gap:8px;padding:4px 0;border-bottom:1px solid var(--dim);margin-bottom:4px">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">PIEZA</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">TAREA</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">PROVEEDOR</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">F. PEDIDO</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--warn)">DÍAS</span>
+        </div>
+        <div id="seguimiento-${idx}">
+          <div style="font-family:IBM Plex Mono,monospace;font-size:9px;color:var(--muted);text-align:center;padding:8px 0">Sin pedidos pendientes</div>
         </div>
       </div>
 
@@ -803,15 +817,30 @@ function renderMaintList(idx, items) {
 
     piezas.forEach((p, pi) => {
       const pRow = document.createElement('div');
-      pRow.style = 'display:grid;grid-template-columns:1fr 100px auto;gap:6px;align-items:center;padding:4px 0;border-bottom:1px solid var(--dim)';
+      const isPedida = p.estado === 'pedida';
+      pRow.style = 'padding:6px 0;border-bottom:1px solid var(--dim)';
+      const pedidaExtra = isPedida ? `
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:end;padding-left:8px;margin-top:4px">
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);margin-bottom:2px">FECHA PEDIDO</div>
+            <input type="date" class="maint-input" value="${p.fecha_pedido||''}" style="font-size:10px;width:100%" onchange="updatePieza(${idx},${mi},${pi},'fecha_pedido',this.value);renderSeguimiento(${idx})">
+          </div>
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);margin-bottom:2px">PROVEEDOR</div>
+            <input type="text" class="maint-input" placeholder="Proveedor" value="${p.proveedor||''}" style="font-size:10px;width:100%" onchange="updatePieza(${idx},${mi},${pi},'proveedor',this.value)">
+          </div>
+          <button onclick="recibirPieza(${idx},${mi},${pi})" style="font-family:'IBM Plex Mono',monospace;font-size:9px;background:rgba(0,119,68,0.1);color:var(--ok);border:1px solid var(--ok);border-radius:2px;padding:4px 8px;cursor:pointer">✓ Recibido</button>
+        </div>` : '';
       pRow.innerHTML = `
-        <input type="text" class="maint-input" placeholder="Nombre de la pieza" value="${p.nombre||''}" style="font-size:10px" onchange="updatePieza(${idx},${mi},${pi},'nombre',this.value)">
-        <select onchange="updatePieza(${idx},${mi},${pi},'estado',this.value)" style="font-family:'IBM Plex Mono',monospace;font-size:9px;padding:3px 6px;border:1px solid var(--border);border-radius:2px;background:var(--panel2);color:var(--text)">
-          <option value="disponible" ${(p.estado||'disponible')==='disponible'?'selected':''}>Disponible</option>
-          <option value="pedida" ${p.estado==='pedida'?'selected':''}>Pedida</option>
-          <option value="recibida" ${p.estado==='recibida'?'selected':''}>Recibida</option>
-        </select>
-        <button onclick="removePieza(${idx},${mi},${pi})" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:12px">✕</button>
+        <div style="display:grid;grid-template-columns:1fr 100px auto;gap:6px;align-items:center">
+          <input type="text" class="maint-input" placeholder="Nombre de la pieza" value="${p.nombre||''}" style="font-size:10px" onchange="updatePieza(${idx},${mi},${pi},'nombre',this.value)">
+          <select onchange="updatePieza(${idx},${mi},${pi},'estado',this.value);renderMaintList(${idx},state[${idx}].mantenimiento);renderSeguimiento(${idx})" style="font-family:'IBM Plex Mono',monospace;font-size:9px;padding:3px 6px;border:1px solid var(--border);border-radius:2px;background:var(--panel2);color:var(--text)">
+            <option value="disponible" ${(p.estado||'disponible')==='disponible'?'selected':''}>Disponible</option>
+            <option value="pedida" ${p.estado==='pedida'?'selected':''}>Pedida</option>
+            <option value="recibida" ${p.estado==='recibida'?'selected':''}>Recibida</option>
+          </select>
+          <button onclick="removePieza(${idx},${mi},${pi})" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:12px">✕</button>
+        </div>${pedidaExtra}
       `;
       piezasDiv.appendChild(pRow);
     });
@@ -851,6 +880,41 @@ function addPieza(idx, mi) {
 function removePieza(idx, mi, pi) {
   state[idx].mantenimiento[mi].piezas.splice(pi, 1);
   renderMaintList(idx, state[idx].mantenimiento);
+}
+
+function recibirPieza(idx, mi, pi) {
+  state[idx].mantenimiento[mi].piezas[pi].estado = 'recibida';
+  state[idx].mantenimiento[mi].piezas[pi].fecha_recibida = getFechaPanama();
+  renderMaintList(idx, state[idx].mantenimiento);
+  renderSeguimiento(idx);
+}
+
+function renderSeguimiento(idx) {
+  const container = document.getElementById('seguimiento-' + idx);
+  if (!container) return;
+  const items = state[idx].mantenimiento || [];
+  const pedidas = [];
+  items.forEach(m => {
+    if (!m.nombre || m.resuelto) return;
+    (m.piezas || []).forEach(p => {
+      if (p.estado === 'pedida' && p.nombre) {
+        const dias = p.fecha_pedido ? diasTranscurridos(p.fecha_pedido) : null;
+        pedidas.push({ tarea: m.nombre, pieza: p.nombre, proveedor: p.proveedor||'—', fecha: p.fecha_pedido||'—', dias });
+      }
+    });
+  });
+  if (!pedidas.length) {
+    container.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:9px;color:var(--muted);text-align:center;padding:8px 0">Sin pedidos pendientes</div>';
+    return;
+  }
+  container.innerHTML = pedidas.map(p => `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 80px 60px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
+      <span style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;font-weight:700;color:var(--text)">${p.pieza}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">${p.tarea}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text)">${p.proveedor}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">${p.fecha}</span>
+      <span style="font-family:'Orbitron',monospace;font-size:10px;color:var(--warn);font-weight:700">${p.dias !== null ? p.dias+'d' : '—'}</span>
+    </div>`).join('');
 }
 
 function resolverTarea(idx, mi) {
@@ -1322,6 +1386,7 @@ fleet.forEach((ac, idx) => {
   contentEl.appendChild(panel);
   renderMaintList(idx, d.mantenimiento);
   renderBitacora(idx, d.mantenimiento);
+  renderSeguimiento(idx);
   renderBitacoraHoras(idx, d.bitacora_horas);
   renderDocList(idx, d.documentos);
 });
@@ -1844,6 +1909,7 @@ function refreshPanel(idx) {
 
   renderMaintList(idx, d.mantenimiento);
   renderBitacora(idx, d.mantenimiento);
+  renderSeguimiento(idx);
   renderBitacoraHoras(idx, d.bitacora_horas);
   renderDocList(idx, d.documentos);
 

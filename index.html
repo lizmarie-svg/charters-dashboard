@@ -532,10 +532,10 @@ function buildPanel(ac, data, idx) {
           <option value="aog" ${data.status==='aog'?'selected':''}>🔴 GROUNDED</option>
         </select>
         <div style="display:flex;gap:8px;align-items:center">
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted)">S/N</span>
-          <input type="text" class="maint-input" id="serial-${idx}" value="${data.serial}" placeholder="N/A" style="width:110px;font-size:11px">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted)">No. Serie</span>
+          <input type="text" class="field-input" id="serial-${idx}" value="${data.serial||''}" placeholder="Ej: 12345" style="width:120px;font-size:11px">
           <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted)">AÑO</span>
-          <input type="text" class="maint-input" id="year-${idx}" value="${data.year}" placeholder="—" style="width:60px;font-size:11px;text-align:center">
+          <input type="text" class="field-input" id="year-${idx}" value="${data.year||''}" placeholder="2020" style="width:70px;font-size:11px;text-align:center">
         </div>
       </div>
     </div>
@@ -976,14 +976,16 @@ function renderBitacoraHoras(idx, items) {
     return;
   }
   // Show most recent first
+  const lastIdx = registros.length - 1;
   container.innerHTML = [...registros].reverse().map((r, ri) => {
     const origIdx = registros.length - 1 - ri;
-    return `<div style="display:grid;grid-template-columns:1fr 1fr 80px 80px 30px;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+    const isLast = origIdx === lastIdx;
+    return `<div style="display:grid;grid-template-columns:1fr 1fr 80px 80px 30px;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)${isLast?';background:rgba(0,102,204,0.04)':''}">
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text)">${r.fecha||'—'}</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">${r.hora||'—'}</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--accent);font-weight:700">${parseFloat(r.hv||0).toFixed(1)}</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text)">${parseFloat(r.acum||0).toFixed(1)}</span>
-      <button onclick="eliminarHoraBitacora(${idx},${origIdx})" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:0">✕</button>
+      ${isLast ? `<button onclick="eliminarHoraBitacora(${idx},${origIdx})" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:0" title="Eliminar último registro">✕</button>` : '<span></span>'}
     </div>`;
   }).join('');
 }

@@ -652,9 +652,16 @@ function buildPanel(ac, data, idx) {
         </div>
         <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px">
           <!-- Motor -->
-          <div class="field-row" style="margin-bottom:2px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
             <span class="field-label">Motor</span>
-            <span style="font-family:'Orbitron',sans-serif;font-size:12px;color:var(--text)" id="acum-motor-${idx}">${parseFloat(data.ciclos_totales||0).toFixed(1)} <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span></span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">Total manual:</span>
+              <input type="number" class="field-input" id="motor-manual-${idx}" value="${data.ciclos_totales||''}" placeholder="0.0" step="0.1" style="width:75px;font-size:10px" oninput="establecerTotalVenc('motor',${idx},this.value)">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">HV</span>
+            </div>
+          </div>
+          <div style="text-align:right;margin-bottom:2px">
+            <span style="font-family:'Orbitron',sans-serif;font-size:13px;color:var(--text)" id="acum-motor-${idx}">${parseFloat(data.ciclos_totales||0).toFixed(1)} <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span></span>
           </div>
           <div class="progress-bar" style="margin-bottom:2px">
             <div id="pb-motor-${idx}" class="progress-fill ${vencBarCls(data.ciclos_totales,2000)}" style="width:${vencBarPct(data.ciclos_totales,2000)}%"></div>
@@ -664,9 +671,16 @@ function buildPanel(ac, data, idx) {
             <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">Actualizado: <span id="fecha-motor-${idx}" style="color:var(--accent)">${data.fecha_motor||'—'}</span></span>
           </div>
           <!-- Helices -->
-          <div class="field-row" style="margin-bottom:2px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
             <span class="field-label">Hélices</span>
-            <span style="font-family:'Orbitron',sans-serif;font-size:12px;color:var(--text)" id="acum-helices-${idx}">${parseFloat(data.ciclos_limite||0).toFixed(1)} <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span></span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">Total manual:</span>
+              <input type="number" class="field-input" id="helices-manual-${idx}" value="${data.ciclos_limite||''}" placeholder="0.0" step="0.1" style="width:75px;font-size:10px" oninput="establecerTotalVenc('helices',${idx},this.value)">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">HV</span>
+            </div>
+          </div>
+          <div style="text-align:right;margin-bottom:2px">
+            <span style="font-family:'Orbitron',sans-serif;font-size:13px;color:var(--text)" id="acum-helices-${idx}">${parseFloat(data.ciclos_limite||0).toFixed(1)} <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span></span>
           </div>
           <div class="progress-bar" style="margin-bottom:2px">
             <div id="pb-helices-${idx}" class="progress-fill ${vencBarCls(data.ciclos_limite,2000)}" style="width:${vencBarPct(data.ciclos_limite,2000)}%"></div>
@@ -1194,6 +1208,26 @@ function updateEstatusBadge(idx, status, label) {
   badge.textContent = label || (status==='operativo'?'✅ OPERATIVO':status==='mantenimiento'?'🔧 MANTENIMIENTO':'🔴 GROUNDED');
 }
 
+function establecerTotalVenc(tipo, idx, val) {
+  const d = state[idx];
+  const v = parseFloat(val) || 0;
+  if (tipo === 'motor') {
+    d.ciclos_totales = v.toFixed(1);
+    const el = document.getElementById('ciclos_totales-' + idx);
+    if (el) el.value = d.ciclos_totales;
+    const am = document.getElementById('acum-motor-' + idx);
+    if (am) am.innerHTML = v.toFixed(1) + ' <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span>';
+    updateVencBar('motor', idx, v, 2000);
+  } else {
+    d.ciclos_limite = v.toFixed(1);
+    const el = document.getElementById('ciclos_limite-' + idx);
+    if (el) el.value = d.ciclos_limite;
+    const ah = document.getElementById('acum-helices-' + idx);
+    if (ah) ah.innerHTML = v.toFixed(1) + ' <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span>';
+    updateVencBar('helices', idx, v, 2000);
+  }
+}
+
 function revertirVenc(idx) {
   const d = state[idx];
   if (!d.ultimo_venc_hv) return;
@@ -1203,6 +1237,11 @@ function revertirVenc(idx) {
   d.ultimo_venc_hv = '';
   d.ultimo_venc_fecha = '';
   // Update display
+  // Fill manual total inputs
+  const motMan = document.getElementById('motor-manual-' + idx);
+  if (motMan) motMan.value = d.ciclos_totales || '';
+  const helMan = document.getElementById('helices-manual-' + idx);
+  if (helMan) helMan.value = d.ciclos_limite || '';
   const amot = document.getElementById('acum-motor-' + idx);
   const ahel = document.getElementById('acum-helices-' + idx);
   if (amot) amot.innerHTML = parseFloat(d.ciclos_totales).toFixed(1) + ' <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span>';

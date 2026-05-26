@@ -402,7 +402,7 @@ function loadData(reg) { return null; }
 function defaultAc(ac) {
   return {
     status: "",
-    serial: "", year: "", horas_diarias: "", horas_acum_50: "", horas_acum_100: "", bitacora_horas: [], ultimo_venc_hv: "", ultimo_venc_fecha: "",
+    serial: "", year: "", voltaje: "", motor_modelo: "", motor_serie: "", helice_modelo: "", helice_serie: "", horas_diarias: "", horas_acum_50: "", horas_acum_100: "", bitacora_horas: [], ultimo_venc_hv: "", ultimo_venc_fecha: "",
     horas_totales: "", horas_limite: "", fecha_50: "", fecha_100: "",
     ciclos_totales: "", ciclos_limite: "",
     horas_desde_revision: "", horas_hasta_revision: "",
@@ -536,6 +536,28 @@ function buildPanel(ac, data, idx) {
           <input type="text" class="field-input" id="serial-${idx}" value="${data.serial||''}" placeholder="Ej: 12345" style="width:120px;font-size:11px">
           <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted)">AÑO</span>
           <input type="text" class="field-input" id="year-${idx}" value="${data.year||''}" placeholder="2020" style="width:70px;font-size:11px;text-align:center">
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted)">Voltaje</span>
+            <input type="text" class="field-input" id="voltaje-${idx}" value="${data.voltaje||''}" placeholder="12V / 24V" style="width:80px;font-size:11px">
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted)">Modelo Motor</span>
+            <input type="text" class="field-input" id="motor_modelo-${idx}" value="${data.motor_modelo||''}" placeholder="Ej: O-360" style="width:110px;font-size:11px">
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted)">Serie Motor</span>
+            <input type="text" class="field-input" id="motor_serie-${idx}" value="${data.motor_serie||''}" placeholder="No. Serie" style="width:100px;font-size:11px">
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted)">Modelo Hélice</span>
+            <input type="text" class="field-input" id="helice_modelo-${idx}" value="${data.helice_modelo||''}" placeholder="Ej: HC-C2YK" style="width:110px;font-size:11px">
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted)">Serie Hélice</span>
+            <input type="text" class="field-input" id="helice_serie-${idx}" value="${data.helice_serie||''}" placeholder="No. Serie" style="width:100px;font-size:11px">
+          </div>
         </div>
       </div>
     </div>
@@ -1044,6 +1066,11 @@ function savePanel(idx) {
   d.status        = getVal('status-' + idx);
   d.serial        = getVal('serial-' + idx);
   d.year          = getVal('year-' + idx);
+  d.voltaje       = getVal('voltaje-' + idx);
+  d.motor_modelo  = getVal('motor_modelo-' + idx);
+  d.motor_serie   = getVal('motor_serie-' + idx);
+  d.helice_modelo = getVal('helice_modelo-' + idx);
+  d.helice_serie  = getVal('helice_serie-' + idx);
   // Daily hours accumulation
   const hvDiariasRaw = parseFloat(getVal('horas_diarias-' + idx) || 0);
   if (hvDiariasRaw > 0) {
@@ -1684,6 +1711,11 @@ function refreshPanel(idx) {
   sv('status-', d.status);
   sv('serial-', d.serial);
   sv('year-', d.year);
+  sv('voltaje-', d.voltaje);
+  sv('motor_modelo-', d.motor_modelo);
+  sv('motor_serie-', d.motor_serie);
+  sv('helice_modelo-', d.helice_modelo);
+  sv('helice_serie-', d.helice_serie);
   sv('horas_diarias-', '');
   // Update accumulators display
   const a50 = document.getElementById('acum50-' + idx);

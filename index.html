@@ -405,7 +405,7 @@ function defaultAc(ac) {
     serial: "", year: "", voltaje: "", motor_modelo: "", motor_serie: "", helice_modelo: "", helice_serie: "", horas_diarias: "", horas_acum_50: "", horas_acum_100: "", bitacora_horas: [], ultimo_venc_hv: "", ultimo_venc_fecha: "",
     horas_totales: "", horas_limite: "", fecha_50: "", fecha_100: "",
     ciclos_totales: "", ciclos_limite: "",
-    horas_desde_revision: "", horas_hasta_revision: "",
+    horas_desde_revision: "", horas_hasta_revision: "", estatus_nota: "",
     mantenimiento: [
       { nombre: "", fecha: "", resuelto: false, piezas: [] },
       { nombre: "", fecha: "", resuelto: false, piezas: [] },
@@ -669,27 +669,28 @@ function buildPanel(ac, data, idx) {
       </div>
 
       <div class="card">
-        <div class="card-title">🔧 Desde Última Revisión</div>
-        <div class="field-row">
-          <span class="field-label">HV desde revisión</span>
-          <div style="display:flex;align-items:center;gap:6px">
-            <input type="number" class="field-input" id="horas_desde-${idx}" value="${data.horas_desde_revision}" placeholder="0" style="width:80px">
-            <span class="field-unit">HV</span>
-          </div>
+        <div class="card-title">📊 Estatus</div>
+        <div style="text-align:center;padding:12px 0 8px">
+          <div id="estatus-badge-${idx}" style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:900;letter-spacing:1px;padding:10px 16px;border-radius:4px;display:inline-block;${
+            data.status==='operativo'?'color:var(--ok);background:rgba(0,119,68,0.1);border:1px solid var(--ok)':
+            data.status==='mantenimiento'?'color:var(--warn);background:rgba(204,119,0,0.1);border:1px solid var(--warn)':
+            'color:var(--danger);background:rgba(204,17,34,0.1);border:1px solid var(--danger)'
+          }">${
+            data.estatus_label || (
+              data.status==='operativo'?'✅ OPERATIVO':
+              data.status==='mantenimiento'?'🔧 MANTENIMIENTO':
+              '🔴 GROUNDED'
+            )
+          }</div>
         </div>
-        <div class="field-row">
-          <span class="field-label">Intervalo revisión</span>
-          <div style="display:flex;align-items:center;gap:6px">
-            <input type="number" class="field-input" id="horas_hasta-${idx}" value="${data.horas_hasta_revision}" placeholder="0" style="width:80px">
-            <span class="field-unit">HV</span>
-          </div>
+        <div style="margin-top:8px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);margin-bottom:4px">NOTA</div>
+          <textarea id="estatus_nota-${idx}" placeholder="Motivo o descripción..." style="width:100%;font-family:'IBM Plex Sans',sans-serif;font-size:11px;padding:6px 8px;border:1px solid var(--border);border-radius:3px;background:var(--panel2);color:var(--text);resize:vertical;min-height:60px">${data.estatus_nota||''}</textarea>
         </div>
-        <div class="gauge-wrap" id="gauge-wrap-${idx}">
-          ${buildGauge(data.horas_desde_revision, data.horas_hasta_revision, gaugeColor(data.horas_desde_revision, data.horas_hasta_revision))}
-          <div class="gauge-val" id="gauge-val-${idx}" style="color:${gaugeColor(data.horas_desde_revision, data.horas_hasta_revision)}">
-            ${data.horas_desde_revision && data.horas_hasta_revision ? data.horas_desde_revision+' / '+data.horas_hasta_revision+' HV' : '— / — HV'}
-          </div>
-        </div>
+        <input type="hidden" id="horas_desde-${idx}" value="${data.horas_desde_revision||''}">
+        <input type="hidden" id="horas_hasta-${idx}" value="${data.horas_hasta_revision||''}">
+        <div id="gauge-wrap-${idx}" style="display:none"></div>
+        <div id="gauge-val-${idx}" style="display:none"></div>
       </div>
     </div>
 
@@ -1033,6 +1034,18 @@ function eliminarHoraBitacora(idx, ri) {
   savePanel(idx);
 }
 
+function updateEstatusBadge(idx, status, label) {
+  const badge = document.getElementById('estatus-badge-' + idx);
+  if (!badge) return;
+  const styles = {
+    operativo:    'color:var(--ok);background:rgba(0,119,68,0.1);border:1px solid var(--ok)',
+    mantenimiento:'color:var(--warn);background:rgba(204,119,0,0.1);border:1px solid var(--warn)',
+    aog:          'color:var(--danger);background:rgba(204,17,34,0.1);border:1px solid var(--danger)'
+  };
+  badge.style.cssText = `font-family:'Orbitron',sans-serif;font-size:14px;font-weight:900;letter-spacing:1px;padding:10px 16px;border-radius:4px;display:inline-block;${styles[status]||styles.operativo}`;
+  badge.textContent = label || (status==='operativo'?'✅ OPERATIVO':status==='mantenimiento'?'🔧 MANTENIMIENTO':'🔴 GROUNDED');
+}
+
 function revertirVenc(idx) {
   const d = state[idx];
   if (!d.ultimo_venc_hv) return;
@@ -1059,6 +1072,21 @@ function revertirVenc(idx) {
 
 function getVal(id) { const el = document.getElementById(id); return el ? el.value : ''; }
 
+// Sync status dropdown with estatus badge
+function onStatusChange(idx, val) {
+  const d = state[idx];
+  d.status = val;
+  if (val !== 'mantenimiento') d.estatus_label = '';
+  const label = val==='operativo'?'✅ OPERATIVO':val==='mantenimiento'?'🔧 MANTENIMIENTO':'🔴 GROUNDED';
+  updateEstatusBadge(idx, val, d.estatus_label || label);
+  // Update tab badge
+  const tabs = document.querySelectorAll('#sidebar-tabs .aircraft-tab');
+  if (tabs[idx+1]) {
+    const dot = tabs[idx+1].querySelector('.tab-badge');
+    if (dot) dot.className = 'tab-badge ' + (val==='operativo'?'badge-ok':val==='mantenimiento'?'badge-warn':'badge-danger');
+  }
+}
+
 function savePanel(idx) {
   console.log('savePanel called for idx:', idx, 'reg:', fleet[idx].reg);
   const d = state[idx];
@@ -1082,6 +1110,21 @@ function savePanel(idx) {
     if (!Array.isArray(d.bitacora_horas)) d.bitacora_horas = [];
     d.bitacora_horas.push({ fecha, hora, hv: hvDiariasRaw.toFixed(1), acum: d.horas_acum_100 });
     d.horas_diarias = '';
+    // Auto-update status based on accumulated hours
+    if (parseFloat(d.horas_acum_100||0) >= 100) {
+      d.status = 'mantenimiento';
+      d.estatus_label = '🔧 INSPECCIÓN 100 HRS';
+      updateEstatusBadge(idx, d.status, d.estatus_label);
+      // Update dropdown
+      const sel = document.getElementById('status-' + idx);
+      if (sel) sel.value = 'mantenimiento';
+    } else if (parseFloat(d.horas_acum_50||0) >= 50) {
+      d.status = 'mantenimiento';
+      d.estatus_label = '🔧 INSPECCIÓN 50 HRS';
+      updateEstatusBadge(idx, d.status, d.estatus_label);
+      const sel = document.getElementById('status-' + idx);
+      if (sel) sel.value = 'mantenimiento';
+    }
     // Update display immediately
     const inp = document.getElementById('horas_diarias-' + idx);
     if (inp) inp.value = '';
@@ -1141,6 +1184,8 @@ function savePanel(idx) {
   }
   d.horas_desde_revision = getVal('horas_desde-' + idx);
   d.horas_hasta_revision = getVal('horas_hasta-' + idx);
+  const notaEl = document.getElementById('estatus_nota-' + idx);
+  if (notaEl) d.estatus_nota = notaEl.value;
   d.fecha_motor  = state[idx].fecha_motor  || d.fecha_motor  || '';
   d.fecha_helices = state[idx].fecha_helices || d.fecha_helices || '';
   d.emerg_salvavidas = getVal('emerg-salvavidas-' + idx);
@@ -1612,6 +1657,12 @@ function resolverHoras(reg, item) {
     if(pb100) { pb100.style.width='0%'; pb100.className='progress-fill fill-ok'; }
   }
 
+  // Reset estatus label when resolved
+  d.estatus_label = '';
+  d.status = 'operativo';
+  const sel2 = document.getElementById('status-' + idx);
+  if (sel2) sel2.value = 'operativo';
+  updateEstatusBadge(idx, 'operativo', '');
   savePanel(idx);
   setTimeout(() => buildResumen(), 500);
 }
@@ -1723,6 +1774,9 @@ function refreshPanel(idx) {
   const st = (id, val) => { const el = g(id); if (el) el.textContent = val || '—'; };
 
   sv('status-', d.status);
+  updateEstatusBadge(idx, d.status, d.estatus_label || '');
+  const notaEl2 = document.getElementById('estatus_nota-' + idx);
+  if (notaEl2 && d.estatus_nota) notaEl2.value = d.estatus_nota;
   sv('serial-', d.serial);
   sv('year-', d.year);
   sv('voltaje-', d.voltaje);

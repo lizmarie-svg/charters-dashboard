@@ -461,8 +461,8 @@ function setFechaHoy(elemId) {
 
 function vencBarPct(hv, limit) {
   const v = parseFloat(hv), l = parseFloat(limit) || 2000;
-  if (!v) return 100; // full bar green if no data
-  return Math.min(100, Math.round((l - v) / l * 100));
+  if (!v) return 0; // empty bar if no data
+  return Math.min(100, Math.round(v / l * 100)); // shows USED %
 }
 function vencBarCls(hv, limit) {
   const v = parseFloat(hv), l = parseFloat(limit) || 2000;
@@ -600,28 +600,30 @@ function buildPanel(ac, data, idx) {
         <div class="field-row">
           <span class="field-label">Motor</span>
           <div style="display:flex;align-items:center;gap:6px">
-            <input type="number" class="field-input" id="ciclos_totales-${idx}" value="${data.ciclos_totales}" placeholder="0" oninput="updateVencBar('motor',${idx},this.value,2000);updateHorasWarning(this,2000)" style="${parseFloat(data.ciclos_totales||0)/2000*100>=80?'background:rgba(204,17,34,0.12);border-color:var(--danger)':''}">
+            <input type="number" class="field-input" id="ciclos_totales-${idx}" value="${data.ciclos_totales}" placeholder="0" oninput="updateVencBar('motor',${idx},this.value,2000);updateHorasWarning(this,2000);setFechaHoy('fecha-motor-${idx}');state[${idx}].fecha_motor=new Date().toLocaleDateString('es-PA',{day:'2-digit',month:'2-digit',year:'numeric'})" style="${parseFloat(data.ciclos_totales||0)/2000*100>=80?'background:rgba(204,17,34,0.12);border-color:var(--danger)':''}">
             <span class="field-unit" style="white-space:nowrap">HV / <span style="color:var(--accent)">2000 HV</span></span>
           </div>
         </div>
-        <div class="progress-bar" style="margin-bottom:4px">
+        <div class="progress-bar" style="margin-bottom:2px">
           <div id="pb-motor-${idx}" class="progress-fill ${vencBarCls(data.ciclos_totales,2000)}" style="width:${vencBarPct(data.ciclos_totales,2000)}%"></div>
         </div>
-        <div class="pct-line" style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:10px">
           <span class="pct-text" id="pct-motor-${idx}">${vencBarLabel(data.ciclos_totales,2000)}</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">Actualizado: <span id="fecha-motor-${idx}" style="color:var(--accent)">${data.fecha_motor||'—'}</span></span>
         </div>
         <div class="field-row">
           <span class="field-label">Hélices</span>
           <div style="display:flex;align-items:center;gap:6px">
-            <input type="number" class="field-input" id="ciclos_limite-${idx}" value="${data.ciclos_limite}" placeholder="0" oninput="updateVencBar('helices',${idx},this.value,2000);updateHorasWarning(this,2000)" style="${parseFloat(data.ciclos_limite||0)/2000*100>=80?'background:rgba(204,17,34,0.12);border-color:var(--danger)':''}">
+            <input type="number" class="field-input" id="ciclos_limite-${idx}" value="${data.ciclos_limite}" placeholder="0" oninput="updateVencBar('helices',${idx},this.value,2000);updateHorasWarning(this,2000);setFechaHoy('fecha-helices-${idx}');state[${idx}].fecha_helices=new Date().toLocaleDateString('es-PA',{day:'2-digit',month:'2-digit',year:'numeric'})" style="${parseFloat(data.ciclos_limite||0)/2000*100>=80?'background:rgba(204,17,34,0.12);border-color:var(--danger)':''}">
             <span class="field-unit" style="white-space:nowrap">HV / <span style="color:var(--accent)">2000 HV</span></span>
           </div>
         </div>
-        <div class="progress-bar" style="margin-bottom:4px">
+        <div class="progress-bar" style="margin-bottom:2px">
           <div id="pb-helices-${idx}" class="progress-fill ${vencBarCls(data.ciclos_limite,2000)}" style="width:${vencBarPct(data.ciclos_limite,2000)}%"></div>
         </div>
-        <div class="pct-line">
+        <div style="display:flex;justify-content:space-between">
           <span class="pct-text" id="pct-helices-${idx}">${vencBarLabel(data.ciclos_limite,2000)}</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">Actualizado: <span id="fecha-helices-${idx}" style="color:var(--accent)">${data.fecha_helices||'—'}</span></span>
         </div>
         <div style="display:none"><div id="pb-ciclos-${idx}"></div><span id="pct-ciclos-${idx}"></span></div>
       </div>
@@ -1032,6 +1034,8 @@ function savePanel(idx) {
   d.ciclos_limite  = getVal('ciclos_limite-' + idx);
   d.horas_desde_revision = getVal('horas_desde-' + idx);
   d.horas_hasta_revision = getVal('horas_hasta-' + idx);
+  d.fecha_motor  = state[idx].fecha_motor  || d.fecha_motor  || '';
+  d.fecha_helices = state[idx].fecha_helices || d.fecha_helices || '';
   d.emerg_salvavidas = getVal('emerg-salvavidas-' + idx);
   d.emerg_extintor   = getVal('emerg-extintor-' + idx);
   d.emerg_flares     = getVal('emerg-flares-' + idx);
@@ -1617,6 +1621,10 @@ function refreshPanel(idx) {
   sv('horas_limite-', d.horas_limite);
   sv('ciclos_totales-', d.ciclos_totales);
   sv('ciclos_limite-', d.ciclos_limite);
+  const fm = document.getElementById('fecha-motor-' + idx);
+  if (fm && d.fecha_motor) fm.textContent = d.fecha_motor;
+  const fh = document.getElementById('fecha-helices-' + idx);
+  if (fh && d.fecha_helices) fh.textContent = d.fecha_helices;
   sv('horas_desde-', d.horas_desde_revision);
   sv('horas_hasta-', d.horas_hasta_revision);
   sv('emerg-salvavidas-', d.emerg_salvavidas);

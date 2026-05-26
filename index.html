@@ -1641,6 +1641,21 @@ function buildResumen() {
     }
   });
 
+  // Check piezas pedidas (seguimiento)
+  state.forEach((d, idx) => {
+    const reg = fleet[idx].reg;
+    (d.mantenimiento || []).forEach(m => {
+      if (!m.nombre || m.resuelto) return;
+      (m.piezas || []).forEach(p => {
+        if (p.estado === 'pedida' && p.nombre) {
+          const dias = p.fecha_pedido ? diasTranscurridos(p.fecha_pedido) : null;
+          const detail = dias !== null ? `${dias} días en tránsito${p.proveedor ? ' · ' + p.proveedor : ''}` : `Pendiente${p.proveedor ? ' · ' + p.proveedor : ''}`;
+          addAlert('📦 Seguimiento de Pedidos', reg, p.nombre, detail, 'warn');
+        }
+      });
+    });
+  });
+
   // Check pilotos
   pilotosData.forEach(p => {
     if (!p.nombre) return;

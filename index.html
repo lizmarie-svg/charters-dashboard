@@ -1316,30 +1316,28 @@ function renderPilotos() {
   pilotosData.forEach((p, i) => {
     const days = daysUntil(p.medico);
     const row = document.createElement('div');
-    row.style = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr 1fr 30px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)';
+    row.style = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 30px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)';
     row.innerHTML = `
       <input type="text" class="maint-input" placeholder="Nombre del piloto" value="${p.nombre}" onchange="pilotosData[${i}].nombre=this.value;savePilotos()">
       <input type="date" class="maint-input" value="${p.licencia}" onchange="pilotosData[${i}].licencia=this.value;renderPilotos();savePilotos()">
       <span>${daysBadge(daysUntil(p.licencia))}</span>
       <input type="date" class="maint-input" value="${p.medico}" onchange="pilotosData[${i}].medico=this.value;renderPilotos();savePilotos()">
       <span>${daysBadge(daysUntil(p.medico))}</span>
-      <select onchange="pilotosData[${i}].charter=this.value;savePilotos()" style="font-family:'IBM Plex Mono',monospace;font-size:9px;padding:3px 4px;border:1px solid var(--border);border-radius:2px;background:var(--panel2);color:var(--text);width:100%">
-        <option value="vigente" ${(p.charter||'vigente')==='vigente'?'selected':''}>✅ Vigente</option>
-        <option value="vencido" ${p.charter==='vencido'?'selected':''}>🔴 Vencido</option>
-        <option value="na" ${p.charter==='na'?'selected':''}>N/A</option>
-      </select>
-      <select onchange="pilotosData[${i}].escuela=this.value;savePilotos()" style="font-family:'IBM Plex Mono',monospace;font-size:9px;padding:3px 4px;border:1px solid var(--border);border-radius:2px;background:var(--panel2);color:var(--text);width:100%">
-        <option value="vigente" ${(p.escuela||'vigente')==='vigente'?'selected':''}>✅ Vigente</option>
-        <option value="vencido" ${p.escuela==='vencido'?'selected':''}>🔴 Vencido</option>
-        <option value="na" ${p.escuela==='na'?'selected':''}>N/A</option>
-      </select>
+      ${p.charter==='na' ? 
+        `<span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);cursor:pointer;text-decoration:underline" onclick="pilotosData[${i}].charter='';renderPilotos();savePilotos()">N/A</span><span></span>` : 
+        `<div style="display:flex;flex-direction:column;gap:2px"><input type="date" class="maint-input" value="${p.charter||''}" onchange="pilotosData[${i}].charter=this.value;renderPilotos();savePilotos()" style="font-size:10px"><span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);cursor:pointer;text-align:right" onclick="pilotosData[${i}].charter='na';renderPilotos();savePilotos()">N/A</span></div><span>${daysBadge(daysUntil(p.charter))}</span>`
+      }
+      ${p.escuela==='na' ? 
+        `<span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);cursor:pointer;text-decoration:underline" onclick="pilotosData[${i}].escuela='';renderPilotos();savePilotos()">N/A</span><span></span>` : 
+        `<div style="display:flex;flex-direction:column;gap:2px"><input type="date" class="maint-input" value="${p.escuela||''}" onchange="pilotosData[${i}].escuela=this.value;renderPilotos();savePilotos()" style="font-size:10px"><span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);cursor:pointer;text-align:right" onclick="pilotosData[${i}].escuela='na';renderPilotos();savePilotos()">N/A</span></div><span>${daysBadge(daysUntil(p.escuela))}</span>`
+      }
       <button onclick="pilotosData.splice(${i},1);renderPilotos();savePilotos()" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:14px;padding:0">✕</button>
     `;
     container.appendChild(row);
   });
 }
 function addPilotoRow() {
-  pilotosData.push({ nombre: '', licencia: '', medico: '', charter: 'vigente', escuela: 'vigente' });
+  pilotosData.push({ nombre: '', licencia: '', medico: '', charter: '', escuela: '' });
   renderPilotos();
 }
 // localStorage savePilotos removed - using Firebase only

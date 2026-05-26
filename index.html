@@ -1316,7 +1316,7 @@ function renderPilotos() {
   pilotosData.forEach((p, i) => {
     const days = daysUntil(p.medico);
     const row = document.createElement('div');
-    row.style = 'display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 30px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)';
+    row.style = 'display:grid;grid-template-columns:160px 130px 60px 130px 60px 130px 60px 130px 60px 30px;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);min-width:900px';
     row.innerHTML = `
       <input type="text" class="maint-input" placeholder="Nombre del piloto" value="${p.nombre}" onchange="pilotosData[${i}].nombre=this.value;savePilotos()">
       <input type="date" class="maint-input" value="${p.licencia}" onchange="pilotosData[${i}].licencia=this.value;renderPilotos();savePilotos()">

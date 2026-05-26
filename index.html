@@ -1327,22 +1327,20 @@ function buildResumen() {
       }
     }
 
-    // Inspección 50 hrs
-    if (d.horas_totales) {
-      const pctUsed = parseFloat(d.horas_totales) / 50 * 100;
-      if (pctUsed >= 80) {
-        const rem = 50 - parseFloat(d.horas_totales);
-        addAlert('✈ Inspecciones', reg, 'Insp. 50 hrs', `Quedan ${rem} HV (${Math.round(100-pctUsed)}%)`, 'danger');
-      }
-    }
+    // Inspecciones 50/100 hrs — solo alerta la más alta que aplique
+    const acum50 = parseFloat(d.horas_acum_50 || d.horas_totales || 0);
+    const acum100 = parseFloat(d.horas_acum_100 || d.horas_limite || 0);
+    const pct100 = acum100 / 100 * 100;
+    const pct50 = acum50 / 50 * 100;
 
-    // Inspección 100 hrs
-    if (d.horas_limite) {
-      const pctUsed = parseFloat(d.horas_limite) / 100 * 100;
-      if (pctUsed >= 80) {
-        const rem = 100 - parseFloat(d.horas_limite);
-        addAlert('✈ Inspecciones', reg, 'Insp. 100 hrs', `Quedan ${rem} HV (${Math.round(100-pctUsed)}%)`, 'danger');
-      }
+    if (pct100 >= 80) {
+      // 100 hrs alert takes priority — don't show 50 hrs
+      const rem = (100 - acum100).toFixed(1);
+      addAlert('✈ Inspecciones', reg, 'Insp. 100 hrs', `Quedan ${rem} HV (${Math.round(100-pct100)}%)`, 'danger');
+    } else if (pct50 >= 80) {
+      // Only show 50 hrs alert if 100 hrs is not alerting
+      const rem = (50 - acum50).toFixed(1);
+      addAlert('✈ Inspecciones', reg, 'Insp. 50 hrs', `Quedan ${rem} HV (${Math.round(100-pct50)}%)`, 'danger');
     }
   });
 

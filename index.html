@@ -1295,15 +1295,21 @@ pilotosPanel.innerHTML = `
   <div class="divider-label">✈ Pilotos</div>
   <div class="card">
     <div class="card-title">👨‍✈️ Registro de Vigencias</div>
-    <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:8px;padding:8px 0;border-bottom:1px solid var(--dim)">
+    <div style="overflow-x:auto">
+    <div style="display:grid;grid-template-columns:160px 130px 60px 130px 60px 130px 60px 130px 60px 30px;gap:6px;padding:8px 0;border-bottom:1px solid var(--dim);min-width:900px">
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">NOMBRE DEL PILOTO</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">VEN. LICENCIA</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">DÍAS</span>
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">VEN. CERT. MÉDICO</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">CERT. MÉDICO</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">DÍAS</span>
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)"></span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">VERIF. CHARTER</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">DÍAS</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">VERIF. ESCUELA</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">DÍAS</span>
+      <span></span>
     </div>
     <div id="pilotos-list"></div>
+    </div>
     <button class="add-row-btn" onclick="addPilotoRow()">+ Agregar piloto</button>
   </div>
 `;

@@ -402,7 +402,7 @@ function loadData(reg) { return null; }
 function defaultAc(ac) {
   return {
     status: "",
-    serial: "", year: "", horas_diarias: "", horas_acum_50: "", horas_acum_100: "", bitacora_horas: [],
+    serial: "", year: "", horas_diarias: "", horas_acum_50: "", horas_acum_100: "", bitacora_horas: [], ultimo_venc_hv: "", ultimo_venc_fecha: "",
     horas_totales: "", horas_limite: "", fecha_50: "", fecha_100: "",
     ciclos_totales: "", ciclos_limite: "",
     horas_desde_revision: "", horas_hasta_revision: "",
@@ -467,15 +467,15 @@ function vencBarPct(hv, limit) {
 function vencBarCls(hv, limit) {
   const v = parseFloat(hv), l = parseFloat(limit) || 2000;
   if (!v) return 'fill-ok';
-  const used = v / l * 100;
-  return used >= 70 ? 'fill-danger' : 'fill-ok';
+  const remaining = (l - v) / l * 100; // % remaining
+  return remaining <= 20 ? 'fill-danger' : 'fill-ok';
 }
 function vencBarLabel(hv, limit) {
   const v = parseFloat(hv), l = parseFloat(limit) || 2000;
   if (!v) return '—';
-  const rem = l - v;
+  const rem = (l - v).toFixed(1);
   const used = Math.round(v / l * 100);
-  return rem > 0 ? `Quedan ${rem} HV (${100-used}%)` : 'VENCIDO';
+  return parseFloat(rem) > 0 ? `Quedan ${rem} HV (${100-used}%)` : 'VENCIDO';
 }
 function updateVencBar(tipo, idx, val, limit) {
   const pbId = tipo === 'motor' ? 'pb-motor-' : 'pb-helices-';
@@ -635,6 +635,15 @@ function buildPanel(ac, data, idx) {
         <input type="hidden" id="ciclos_totales-${idx}" value="${data.ciclos_totales||''}">
         <input type="hidden" id="ciclos_limite-${idx}" value="${data.ciclos_limite||''}">
         <div style="display:none"><div id="pb-ciclos-${idx}"></div><span id="pct-ciclos-${idx}"></span></div>
+        <!-- Ultimo registro -->
+        <div id="ultimo-venc-${idx}" style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px;display:${data.ultimo_venc_hv?'flex':'none'};justify-content:space-between;align-items:center">
+          <div>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">ÚLTIMO REGISTRO: </span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);font-weight:700">${data.ultimo_venc_hv||''} HV</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);margin-left:8px">${data.ultimo_venc_fecha||''}</span>
+          </div>
+          <button onclick="revertirVenc(${idx})" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:16px;padding:0 4px" title="Revertir último ingreso">✕</button>
+        </div>
       </div>
 
       <div class="card">
@@ -1000,6 +1009,30 @@ function eliminarHoraBitacora(idx, ri) {
   savePanel(idx);
 }
 
+function revertirVenc(idx) {
+  const d = state[idx];
+  if (!d.ultimo_venc_hv) return;
+  const hv = parseFloat(d.ultimo_venc_hv);
+  d.ciclos_totales = Math.max(0, parseFloat(d.ciclos_totales||0) - hv).toFixed(1);
+  d.ciclos_limite  = Math.max(0, parseFloat(d.ciclos_limite||0)  - hv).toFixed(1);
+  d.ultimo_venc_hv = '';
+  d.ultimo_venc_fecha = '';
+  // Update display
+  const amot = document.getElementById('acum-motor-' + idx);
+  const ahel = document.getElementById('acum-helices-' + idx);
+  if (amot) amot.innerHTML = parseFloat(d.ciclos_totales).toFixed(1) + ' <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span>';
+  if (ahel) ahel.innerHTML = parseFloat(d.ciclos_limite).toFixed(1) + ' <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span>';
+  updateVencBar('motor', idx, d.ciclos_totales, 2000);
+  updateVencBar('helices', idx, d.ciclos_limite, 2000);
+  const ulDiv = document.getElementById('ultimo-venc-' + idx);
+  if (ulDiv) ulDiv.style.display = 'none';
+  const ht = document.getElementById('ciclos_totales-' + idx);
+  const hl = document.getElementById('ciclos_limite-' + idx);
+  if (ht) ht.value = d.ciclos_totales;
+  if (hl) hl.value = d.ciclos_limite;
+  savePanel(idx);
+}
+
 function getVal(id) { const el = document.getElementById(id); return el ? el.value : ''; }
 
 function savePanel(idx) {
@@ -1059,6 +1092,15 @@ function savePanel(idx) {
     const fhEl = document.getElementById('fecha-helices-' + idx);
     if (fmEl) fmEl.textContent = fechaV;
     if (fhEl) fhEl.textContent = fechaV;
+    // Save ultimo registro
+    d.ultimo_venc_hv = hvVencDia.toFixed(1);
+    d.ultimo_venc_fecha = fechaV + ' ' + horaV;
+    const ulDiv = document.getElementById('ultimo-venc-' + idx);
+    if (ulDiv) {
+      ulDiv.style.display = 'flex';
+      ulDiv.querySelector('span:nth-child(2)').textContent = hvVencDia.toFixed(1) + ' HV';
+      ulDiv.querySelector('span:nth-child(3)').textContent = d.ultimo_venc_fecha;
+    }
     // Clear input
     const vencInp = document.getElementById('horas-venc-dia-' + idx);
     if (vencInp) vencInp.value = '';
@@ -1668,6 +1710,14 @@ function refreshPanel(idx) {
   if (fm && d.fecha_motor) fm.textContent = d.fecha_motor;
   const fh = document.getElementById('fecha-helices-' + idx);
   if (fh && d.fecha_helices) fh.textContent = d.fecha_helices;
+  // Ultimo venc registro
+  const ulDiv = document.getElementById('ultimo-venc-' + idx);
+  if (ulDiv && d.ultimo_venc_hv) {
+    ulDiv.style.display = 'flex';
+    const spans = ulDiv.querySelectorAll('span');
+    if (spans[1]) spans[1].textContent = d.ultimo_venc_hv + ' HV';
+    if (spans[2]) spans[2].textContent = d.ultimo_venc_fecha || '';
+  }
   sv('horas_desde-', d.horas_desde_revision);
   sv('horas_hasta-', d.horas_hasta_revision);
   sv('emerg-salvavidas-', d.emerg_salvavidas);

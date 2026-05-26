@@ -1634,7 +1634,7 @@ if (db) {
       if (firebaseData[key]) {
         const fbData = firebaseData[key];
         // Convert Firebase objects back to arrays
-        ['mantenimiento','documentos'].forEach(arrKey => {
+        ['mantenimiento','documentos','bitacora_horas'].forEach(arrKey => {
           if (fbData[arrKey] && typeof fbData[arrKey] === 'object' && !Array.isArray(fbData[arrKey])) {
             fbData[arrKey] = Object.keys(fbData[arrKey]).sort().map(k => fbData[arrKey][k]);
           }

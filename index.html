@@ -1463,6 +1463,7 @@ function resolverHoras(reg, item) {
     if(el) { el.value='0'; updateVencBar('helices',idx,'0',2000); updateHorasWarning(el,2000); }
   }
   if (item.includes('50 hrs')) { 
+    // Reset only 50 hrs accumulator
     d.horas_acum_50 = '0';
     d.horas_totales = '0';
     const a50 = document.getElementById('acum50-'+idx);
@@ -1471,10 +1472,17 @@ function resolverHoras(reg, item) {
     if(pb50) { pb50.style.width='0%'; pb50.className='progress-fill fill-ok'; }
   }
   if (item.includes('100 hrs')) { 
+    // Reset both 50 and 100 accumulators
+    d.horas_acum_50 = '0';
+    d.horas_totales = '0';
     d.horas_acum_100 = '0';
     d.horas_limite = '0';
+    const a50 = document.getElementById('acum50-'+idx);
+    const pb50 = document.getElementById('pb-50-'+idx);
     const a100 = document.getElementById('acum100-'+idx);
     const pb100 = document.getElementById('pb-100-'+idx);
+    if(a50) a50.textContent = '0.0 HV';
+    if(pb50) { pb50.style.width='0%'; pb50.className='progress-fill fill-ok'; }
     if(a100) a100.textContent = '0.0 HV';
     if(pb100) { pb100.style.width='0%'; pb100.className='progress-fill fill-ok'; }
   }

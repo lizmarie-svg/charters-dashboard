@@ -729,6 +729,22 @@ function buildPanel(ac, data, idx) {
         </div>
       </div>
 
+      <div class="card" style="margin-top:12px">
+        <div class="card-title">📦 Bitácora de Pedidos Recibidos</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 80px 80px 60px 30px;gap:6px;padding:4px 0;border-bottom:1px solid var(--dim);margin-bottom:4px">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">PIEZA</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">TAREA</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">PROVEEDOR</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">PEDIDA</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">RECIBIDA</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">DÍAS</span>
+          <span></span>
+        </div>
+        <div id="bitacora-pedidos-${idx}">
+          <div style="font-family:IBM Plex Mono,monospace;font-size:9px;color:var(--muted);text-align:center;padding:8px 0">Sin registros</div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-title">📋 Documentos & Certificaciones</div>
         <div id="doc-list-${idx}"></div>
@@ -883,10 +899,55 @@ function removePieza(idx, mi, pi) {
 }
 
 function recibirPieza(idx, mi, pi) {
-  state[idx].mantenimiento[mi].piezas[pi].estado = 'recibida';
-  state[idx].mantenimiento[mi].piezas[pi].fecha_recibida = getFechaPanama();
+  const pieza = state[idx].mantenimiento[mi].piezas[pi];
+  pieza.estado = 'recibida';
+  pieza.fecha_recibida = getFechaPanama();
+  // Calculate days it took
+  const dias = pieza.fecha_pedido ? diasTranscurridos(pieza.fecha_pedido) : null;
+  pieza.dias_entrega = dias;
+  // Add to bitacora_pedidos
+  if (!state[idx].bitacora_pedidos) state[idx].bitacora_pedidos = [];
+  state[idx].bitacora_pedidos.push({
+    pieza: pieza.nombre,
+    tarea: state[idx].mantenimiento[mi].nombre,
+    proveedor: pieza.proveedor || '—',
+    fecha_pedido: pieza.fecha_pedido || '—',
+    fecha_recibida: pieza.fecha_recibida,
+    dias: dias
+  });
   renderMaintList(idx, state[idx].mantenimiento);
   renderSeguimiento(idx);
+  renderBitacoraPedidos(idx);
+  savePanel(idx);
+}
+
+function renderBitacoraPedidos(idx) {
+  const container = document.getElementById('bitacora-pedidos-' + idx);
+  if (!container) return;
+  const items = state[idx].bitacora_pedidos || [];
+  if (!items.length) {
+    container.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:9px;color:var(--muted);text-align:center;padding:8px 0">Sin registros</div>';
+    return;
+  }
+  container.innerHTML = [...items].reverse().map((r, ri) => {
+    const origIdx = items.length - 1 - ri;
+    const isLast = origIdx === items.length - 1;
+    return `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 80px 80px 60px ${isLast?'30px':'30px'};gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;font-weight:700;color:var(--text)">${r.pieza}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">${r.tarea||'—'}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text)">${r.proveedor}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">${r.fecha_pedido}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--ok)">${r.fecha_recibida}</span>
+      <span style="font-family:'Orbitron',monospace;font-size:10px;color:var(--accent);font-weight:700">${r.dias !== null && r.dias !== undefined ? r.dias+'d' : '—'}</span>
+      ${isLast ? `<button onclick="eliminarBitacoraPedido(${idx},${origIdx})" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:0">✕</button>` : '<span></span>'}
+    </div>`;
+  }).join('');
+}
+
+function eliminarBitacoraPedido(idx, ri) {
+  state[idx].bitacora_pedidos.splice(ri, 1);
+  renderBitacoraPedidos(idx);
+  savePanel(idx);
 }
 
 function renderSeguimiento(idx) {
@@ -1387,6 +1448,7 @@ fleet.forEach((ac, idx) => {
   renderMaintList(idx, d.mantenimiento);
   renderBitacora(idx, d.mantenimiento);
   renderSeguimiento(idx);
+  renderBitacoraPedidos(idx);
   renderBitacoraHoras(idx, d.bitacora_horas);
   renderDocList(idx, d.documentos);
 });
@@ -1647,11 +1709,14 @@ function buildResumen() {
       const isHoras = item.cat.includes('Horas') || item.cat.includes('Inspecciones');
       const isDoc = item.cat.includes('Documentos') || item.cat.includes('Emergencia');
       const isPiloto = item.cat.includes('Pilotos');
+      const isPedido = item.cat.includes('Seguimiento');
 
       const itemId = `pend-${reg.replace(/[^a-zA-Z0-9]/g,'_')}-${ii}`;
 
       let resolveHtml = '';
-      if (isHoras) {
+      if (isPedido) {
+        resolveHtml = `<span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">Marcar Recibido en la tarea</span>`;
+      } else if (isHoras) {
         resolveHtml = `<button onclick="resolverHoras('${reg}','${item.item}')" 
           style="font-family:'IBM Plex Mono',monospace;font-size:9px;background:rgba(0,119,68,0.1);color:var(--ok);border:1px solid var(--ok);border-radius:2px;padding:3px 10px;cursor:pointer">
           ✓ Resuelto</button>`;
@@ -1910,6 +1975,7 @@ function refreshPanel(idx) {
   renderMaintList(idx, d.mantenimiento);
   renderBitacora(idx, d.mantenimiento);
   renderSeguimiento(idx);
+  renderBitacoraPedidos(idx);
   renderBitacoraHoras(idx, d.bitacora_horas);
   renderDocList(idx, d.documentos);
 
@@ -1931,7 +1997,7 @@ if (db) {
       if (firebaseData[key]) {
         const fbData = firebaseData[key];
         // Convert Firebase objects back to arrays
-        ['mantenimiento','documentos','bitacora_horas'].forEach(arrKey => {
+        ['mantenimiento','documentos','bitacora_horas','bitacora_pedidos'].forEach(arrKey => {
           if (fbData[arrKey] && typeof fbData[arrKey] === 'object' && !Array.isArray(fbData[arrKey])) {
             fbData[arrKey] = Object.keys(fbData[arrKey]).sort().map(k => fbData[arrKey][k]);
           }

@@ -402,7 +402,7 @@ function loadData(reg) { return null; }
 function defaultAc(ac) {
   return {
     status: "",
-    serial: "", year: "",
+    serial: "", year: "", horas_diarias: "", horas_acum_50: "", horas_acum_100: "", bitacora_horas: [],
     horas_totales: "", horas_limite: "", fecha_50: "", fecha_100: "",
     ciclos_totales: "", ciclos_limite: "",
     horas_desde_revision: "", horas_hasta_revision: "",
@@ -544,29 +544,54 @@ function buildPanel(ac, data, idx) {
     <div class="section-grid">
       <div class="card">
         <div class="card-title">✈ Inspección 50 / 100 Horas</div>
-        <div class="field-row">
-          <span class="field-label">Horas 50 hrs</span>
+        <!-- Daily hours input -->
+        <div class="field-row" style="margin-bottom:4px">
+          <span class="field-label">Horas del día</span>
           <div style="display:flex;align-items:center;gap:6px">
-            <input type="number" class="field-input" id="horas_totales-${idx}" value="${data.horas_totales}" placeholder="0" oninput="setFechaHoy('fecha50-${idx}');state[${idx}].fecha_50=new Date().toLocaleDateString('es-PA', {day:'2-digit',month:'2-digit',year:'numeric'});updateHorasWarning(this,50)" style="${parseFloat(data.horas_totales||0)/50*100>=80?'background:rgba(204,17,34,0.12);border-color:var(--danger)':''}">
+            <input type="number" class="field-input" id="horas_diarias-${idx}" value="${data.horas_diarias||''}" placeholder="0.0" step="0.1" style="width:80px">
             <span class="field-unit">HV</span>
           </div>
         </div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);text-align:right;margin-bottom:8px">
-          Actualizado: <span id="fecha50-${idx}" style="color:var(--accent)">${data.fecha_50||'—'}</span>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);text-align:right;margin-bottom:10px">
+          Último ingreso: <span id="fecha-diaria-${idx}" style="color:var(--accent)">${data.fecha_diaria||'—'}</span>
         </div>
-        <div class="field-row">
-          <span class="field-label">Horas 100 hrs</span>
-          <div style="display:flex;align-items:center;gap:6px">
-            <input type="number" class="field-input" id="horas_limite-${idx}" value="${data.horas_limite}" placeholder="0" oninput="setFechaHoy('fecha100-${idx}');state[${idx}].fecha_100=new Date().toLocaleDateString('es-PA', {day:'2-digit',month:'2-digit',year:'numeric'});updateHorasWarning(this,100)" style="${parseFloat(data.horas_limite||0)/100*100>=80?'background:rgba(204,17,34,0.12);border-color:var(--danger)':''}">
-            <span class="field-unit">HV</span>
+        <div style="border-top:1px solid var(--border);padding-top:10px;margin-bottom:8px">
+          <div class="field-row" style="margin-bottom:2px">
+            <span class="field-label">Acum. 50 hrs</span>
+            <span style="font-family:'Orbitron',sans-serif;font-size:13px;color:var(--text)" id="acum50-${idx}">${parseFloat(data.horas_acum_50||0).toFixed(1)} HV</span>
+          </div>
+          <div class="progress-bar" style="margin-bottom:8px">
+            <div id="pb-50-${idx}" class="progress-fill ${parseFloat(data.horas_acum_50||0)/50*100>=80?'fill-danger':'fill-ok'}" style="width:${Math.min(100,parseFloat(data.horas_acum_50||0)/50*100)}%"></div>
+          </div>
+          <div class="field-row" style="margin-bottom:2px">
+            <span class="field-label">Acum. 100 hrs</span>
+            <span style="font-family:'Orbitron',sans-serif;font-size:13px;color:var(--text)" id="acum100-${idx}">${parseFloat(data.horas_acum_100||0).toFixed(1)} HV</span>
+          </div>
+          <div class="progress-bar">
+            <div id="pb-100-${idx}" class="progress-fill ${parseFloat(data.horas_acum_100||0)/100*100>=80?'fill-danger':'fill-ok'}" style="width:${Math.min(100,parseFloat(data.horas_acum_100||0)/100*100)}%"></div>
           </div>
         </div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);text-align:right;margin-bottom:8px">
-          Actualizado: <span id="fecha100-${idx}" style="color:var(--accent)">${data.fecha_100||'—'}</span>
+        <!-- Hidden fields for compatibility -->
+        <input type="hidden" id="horas_totales-${idx}" value="${data.horas_acum_50||''}">
+        <input type="hidden" id="horas_limite-${idx}" value="${data.horas_acum_100||''}">
+        <span id="fecha50-${idx}" style="display:none"></span>
+        <span id="fecha100-${idx}" style="display:none"></span>
+        <div id="pct-horas-${idx}" style="display:none"></div>
+        <div id="pb-horas-${idx}" style="display:none"></div>
+      </div>
+
+      <!-- Bitacora de horas -->
+      <div class="card" style="margin-top:12px">
+        <div class="card-title">📋 Bitácora de Horas de Vuelo</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 80px 80px 30px;gap:6px;padding:4px 0;border-bottom:1px solid var(--dim)">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">FECHA</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">HORA</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">HV DÍA</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">ACUM.</span>
+          <span></span>
         </div>
-        <div class="progress-bar"><div class="progress-fill fill-empty" id="pb-horas-${idx}" style="width:${pct(data.horas_totales,data.horas_limite)||0}%"></div></div>
-        <div class="pct-line">
-          <span class="pct-text" id="pct-horas-${idx}">${pct(data.horas_totales,data.horas_limite) !== null ? pct(data.horas_totales,data.horas_limite)+'% del límite' : '—'}</span>
+        <div id="bitacora-horas-${idx}">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);text-align:center;padding:8px 0">Sin registros</div>
         </div>
       </div>
 
@@ -915,6 +940,55 @@ function toggleEmerg(idx) {
   arrow.textContent = visible ? '▸' : '▾';
 }
 
+function getHoraPanama() {
+  return new Date().toLocaleTimeString('es-PA', {hour:'2-digit',minute:'2-digit',timeZone:'America/Panama',hour12:false});
+}
+function getFechaPanama() {
+  return new Date().toLocaleDateString('es-PA', {day:'2-digit',month:'2-digit',year:'numeric',timeZone:'America/Panama'});
+}
+
+function renderBitacoraHoras(idx, items) {
+  const container = document.getElementById('bitacora-horas-' + idx);
+  if (!container) return;
+  const registros = Array.isArray(items) ? items : [];
+  if (!registros.length) {
+    container.innerHTML = '<div style="font-family:IBM Plex Mono,monospace;font-size:9px;color:var(--muted);text-align:center;padding:8px 0">Sin registros</div>';
+    return;
+  }
+  // Show most recent first
+  container.innerHTML = [...registros].reverse().map((r, ri) => {
+    const origIdx = registros.length - 1 - ri;
+    return `<div style="display:grid;grid-template-columns:1fr 1fr 80px 80px 30px;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text)">${r.fecha||'—'}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">${r.hora||'—'}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--accent);font-weight:700">${parseFloat(r.hv||0).toFixed(1)}</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text)">${parseFloat(r.acum||0).toFixed(1)}</span>
+      <button onclick="eliminarHoraBitacora(${idx},${origIdx})" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:0">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function eliminarHoraBitacora(idx, ri) {
+  const d = state[idx];
+  if (!d.bitacora_horas || !d.bitacora_horas[ri]) return;
+  const hv = parseFloat(d.bitacora_horas[ri].hv || 0);
+  // Subtract from accumulators
+  d.horas_acum_50 = Math.max(0, parseFloat(d.horas_acum_50||0) - hv).toFixed(1);
+  d.horas_acum_100 = Math.max(0, parseFloat(d.horas_acum_100||0) - hv).toFixed(1);
+  d.bitacora_horas.splice(ri, 1);
+  // Update display
+  const a50 = document.getElementById('acum50-' + idx);
+  const a100 = document.getElementById('acum100-' + idx);
+  if (a50) a50.textContent = parseFloat(d.horas_acum_50).toFixed(1) + ' HV';
+  if (a100) a100.textContent = parseFloat(d.horas_acum_100).toFixed(1) + ' HV';
+  const pb50 = document.getElementById('pb-50-' + idx);
+  const pb100 = document.getElementById('pb-100-' + idx);
+  if (pb50) pb50.style.width = Math.min(100, parseFloat(d.horas_acum_50)/50*100) + '%';
+  if (pb100) pb100.style.width = Math.min(100, parseFloat(d.horas_acum_100)/100*100) + '%';
+  renderBitacoraHoras(idx, d.bitacora_horas);
+  savePanel(idx);
+}
+
 function getVal(id) { const el = document.getElementById(id); return el ? el.value : ''; }
 
 function savePanel(idx) {
@@ -924,8 +998,34 @@ function savePanel(idx) {
   d.status        = getVal('status-' + idx);
   d.serial        = getVal('serial-' + idx);
   d.year          = getVal('year-' + idx);
-  d.horas_totales = getVal('horas_totales-' + idx);
-  d.horas_limite  = getVal('horas_limite-' + idx);
+  // Daily hours accumulation
+  const hvDiariasRaw = parseFloat(getVal('horas_diarias-' + idx) || 0);
+  if (hvDiariasRaw > 0) {
+    const fecha = getFechaPanama();
+    const hora = getHoraPanama();
+    d.horas_acum_50 = (parseFloat(d.horas_acum_50 || 0) + hvDiariasRaw).toFixed(1);
+    d.horas_acum_100 = (parseFloat(d.horas_acum_100 || 0) + hvDiariasRaw).toFixed(1);
+    d.fecha_diaria = fecha + ' ' + hora;
+    if (!Array.isArray(d.bitacora_horas)) d.bitacora_horas = [];
+    d.bitacora_horas.push({ fecha, hora, hv: hvDiariasRaw.toFixed(1), acum: d.horas_acum_100 });
+    d.horas_diarias = '';
+    // Update display immediately
+    const inp = document.getElementById('horas_diarias-' + idx);
+    if (inp) inp.value = '';
+    const fd = document.getElementById('fecha-diaria-' + idx);
+    if (fd) fd.textContent = d.fecha_diaria;
+    const a50 = document.getElementById('acum50-' + idx);
+    const a100 = document.getElementById('acum100-' + idx);
+    if (a50) a50.textContent = parseFloat(d.horas_acum_50).toFixed(1) + ' HV';
+    if (a100) a100.textContent = parseFloat(d.horas_acum_100).toFixed(1) + ' HV';
+    const pb50 = document.getElementById('pb-50-' + idx);
+    const pb100 = document.getElementById('pb-100-' + idx);
+    if (pb50) { pb50.style.width = Math.min(100, parseFloat(d.horas_acum_50)/50*100) + '%'; pb50.className = 'progress-fill ' + (parseFloat(d.horas_acum_50)/50*100>=80?'fill-danger':'fill-ok'); }
+    if (pb100) { pb100.style.width = Math.min(100, parseFloat(d.horas_acum_100)/100*100) + '%'; pb100.className = 'progress-fill ' + (parseFloat(d.horas_acum_100)/100*100>=80?'fill-danger':'fill-ok'); }
+    renderBitacoraHoras(idx, d.bitacora_horas);
+  }
+  d.horas_totales = d.horas_acum_50 || '';
+  d.horas_limite  = d.horas_acum_100 || '';
   d.fecha_50      = state[idx].fecha_50 || d.fecha_50 || '';
   d.fecha_100     = state[idx].fecha_100 || d.fecha_100 || '';
   d.ciclos_totales = getVal('ciclos_totales-' + idx);
@@ -1066,6 +1166,7 @@ fleet.forEach((ac, idx) => {
   contentEl.appendChild(panel);
   renderMaintList(idx, d.mantenimiento);
   renderBitacora(idx, d.mantenimiento);
+  renderBitacoraHoras(idx, d.bitacora_horas);
   renderDocList(idx, d.documentos);
 });
 
@@ -1469,7 +1570,22 @@ function refreshPanel(idx) {
   const st = (id, val) => { const el = g(id); if (el) el.textContent = val || '—'; };
 
   sv('status-', d.status);
-  sv('horas_totales-', d.horas_totales);
+  sv('serial-', d.serial);
+  sv('year-', d.year);
+  sv('horas_diarias-', '');
+  // Update accumulators display
+  const a50 = document.getElementById('acum50-' + idx);
+  const a100 = document.getElementById('acum100-' + idx);
+  if (a50) a50.textContent = parseFloat(d.horas_acum_50||0).toFixed(1) + ' HV';
+  if (a100) a100.textContent = parseFloat(d.horas_acum_100||0).toFixed(1) + ' HV';
+  const pb50r = document.getElementById('pb-50-' + idx);
+  const pb100r = document.getElementById('pb-100-' + idx);
+  if (pb50r) { pb50r.style.width = Math.min(100,parseFloat(d.horas_acum_50||0)/50*100)+'%'; pb50r.className='progress-fill '+(parseFloat(d.horas_acum_50||0)/50*100>=80?'fill-danger':'fill-ok'); }
+  if (pb100r) { pb100r.style.width = Math.min(100,parseFloat(d.horas_acum_100||0)/100*100)+'%'; pb100r.className='progress-fill '+(parseFloat(d.horas_acum_100||0)/100*100>=80?'fill-danger':'fill-ok'); }
+  const fd = document.getElementById('fecha-diaria-' + idx);
+  if (fd && d.fecha_diaria) fd.textContent = d.fecha_diaria;
+  renderBitacoraHoras(idx, d.bitacora_horas);
+  sv('horas_totales-', d.horas_acum_50);
   sv('horas_limite-', d.horas_limite);
   sv('ciclos_totales-', d.ciclos_totales);
   sv('ciclos_limite-', d.ciclos_limite);
@@ -1497,6 +1613,7 @@ function refreshPanel(idx) {
 
   renderMaintList(idx, d.mantenimiento);
   renderBitacora(idx, d.mantenimiento);
+  renderBitacoraHoras(idx, d.bitacora_horas);
   renderDocList(idx, d.documentos);
 
   // Update sidebar badge

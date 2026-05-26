@@ -402,7 +402,7 @@ function loadData(reg) { return null; }
 function defaultAc(ac) {
   return {
     status: "",
-    serial: "", year: "", voltaje: "", motor_fabricante: "", motor_modelo: "", motor_serie: "", helice_fabricante: "", helice_modelo: "", helice_serie: "", horas_diarias: "", horas_acum_50: "", horas_acum_100: "", bitacora_horas: [], ultimo_venc_hv: "", ultimo_venc_fecha: "",
+    serial: "", year: "", voltaje: "", motor_fabricante: "", motor_modelo: "", motor_serie: "", helice_fabricante: "", helice_modelo: "", helice_serie: "", limite_motor: "2000", limite_helice: "2000", horas_diarias: "", horas_acum_50: "", horas_acum_100: "", bitacora_horas: [], ultimo_venc_hv: "", ultimo_venc_fecha: "",
     horas_totales: "", horas_limite: "", fecha_50: "", fecha_100: "",
     ciclos_totales: "", ciclos_limite: "",
     horas_desde_revision: "", horas_hasta_revision: "", estatus_nota: "",
@@ -660,8 +660,11 @@ function buildPanel(ac, data, idx) {
               <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">HV</span>
             </div>
           </div>
-          <div style="text-align:right;margin-bottom:2px">
-            <span style="font-family:'Orbitron',sans-serif;font-size:13px;color:var(--text)" id="acum-motor-${idx}">${parseFloat(data.ciclos_totales||0).toFixed(1)} <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span></span>
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-bottom:2px">
+            <span style="font-family:'Orbitron',sans-serif;font-size:13px;color:var(--text)" id="acum-motor-${idx}">${parseFloat(data.ciclos_totales||0).toFixed(1)}</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">/</span>
+            <input type="number" id="limite-motor-${idx}" value="${data.limite_motor||2000}" step="100" style="width:65px;font-family:'IBM Plex Mono',monospace;font-size:9px;border:1px solid var(--border);border-radius:2px;background:var(--panel2);color:var(--accent);text-align:center;padding:1px 4px" oninput="updateLimiteVenc('motor',${idx},this.value)">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--accent)">HV</span>
           </div>
           <div class="progress-bar" style="margin-bottom:2px">
             <div id="pb-motor-${idx}" class="progress-fill ${vencBarCls(data.ciclos_totales,2000)}" style="width:${vencBarPct(data.ciclos_totales,2000)}%"></div>
@@ -679,8 +682,11 @@ function buildPanel(ac, data, idx) {
               <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">HV</span>
             </div>
           </div>
-          <div style="text-align:right;margin-bottom:2px">
-            <span style="font-family:'Orbitron',sans-serif;font-size:13px;color:var(--text)" id="acum-helices-${idx}">${parseFloat(data.ciclos_limite||0).toFixed(1)} <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span></span>
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-bottom:2px">
+            <span style="font-family:'Orbitron',sans-serif;font-size:13px;color:var(--text)" id="acum-helices-${idx}">${parseFloat(data.ciclos_limite||0).toFixed(1)}</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">/</span>
+            <input type="number" id="limite-helices-${idx}" value="${data.limite_helice||2000}" step="100" style="width:65px;font-family:'IBM Plex Mono',monospace;font-size:9px;border:1px solid var(--border);border-radius:2px;background:var(--panel2);color:var(--accent);text-align:center;padding:1px 4px" oninput="updateLimiteVenc('helices',${idx},this.value)">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--accent)">HV</span>
           </div>
           <div class="progress-bar" style="margin-bottom:2px">
             <div id="pb-helices-${idx}" class="progress-fill ${vencBarCls(data.ciclos_limite,2000)}" style="width:${vencBarPct(data.ciclos_limite,2000)}%"></div>
@@ -1208,6 +1214,19 @@ function updateEstatusBadge(idx, status, label) {
   badge.textContent = label || (status==='operativo'?'✅ OPERATIVO':status==='mantenimiento'?'🔧 MANTENIMIENTO':'🔴 GROUNDED');
 }
 
+function getLimite(tipo, idx) {
+  const el = document.getElementById('limite-' + tipo + '-' + idx);
+  return parseFloat(el ? el.value : (tipo==='motor' ? state[idx].limite_motor : state[idx].limite_helice) || 2000) || 2000;
+}
+
+function updateLimiteVenc(tipo, idx, val) {
+  const d = state[idx];
+  const l = parseFloat(val) || 2000;
+  if (tipo === 'motor') d.limite_motor = l.toString();
+  else d.limite_helice = l.toString();
+  updateVencBar(tipo, idx, tipo==='motor' ? d.ciclos_totales : d.ciclos_limite, l);
+}
+
 function establecerTotalVenc(tipo, idx, val) {
   const d = state[idx];
   const v = parseFloat(val) || 0;
@@ -1216,15 +1235,15 @@ function establecerTotalVenc(tipo, idx, val) {
     const el = document.getElementById('ciclos_totales-' + idx);
     if (el) el.value = d.ciclos_totales;
     const am = document.getElementById('acum-motor-' + idx);
-    if (am) am.innerHTML = v.toFixed(1) + ' <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span>';
-    updateVencBar('motor', idx, v, 2000);
+    if (am) am.textContent = v.toFixed(1);
+    updateVencBar('motor', idx, v, getLimite('motor', idx));
   } else {
     d.ciclos_limite = v.toFixed(1);
     const el = document.getElementById('ciclos_limite-' + idx);
     if (el) el.value = d.ciclos_limite;
     const ah = document.getElementById('acum-helices-' + idx);
-    if (ah) ah.innerHTML = v.toFixed(1) + ' <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span>';
-    updateVencBar('helices', idx, v, 2000);
+    if (ah) ah.textContent = v.toFixed(1);
+    updateVencBar('helices', idx, v, getLimite('helices', idx));
   }
 }
 
@@ -1242,10 +1261,14 @@ function revertirVenc(idx) {
   if (motMan) motMan.value = d.ciclos_totales || '';
   const helMan = document.getElementById('helices-manual-' + idx);
   if (helMan) helMan.value = d.ciclos_limite || '';
+  const limMot = document.getElementById('limite-motor-' + idx);
+  if (limMot) limMot.value = d.limite_motor || '2000';
+  const limHel = document.getElementById('limite-helices-' + idx);
+  if (limHel) limHel.value = d.limite_helice || '2000';
   const amot = document.getElementById('acum-motor-' + idx);
   const ahel = document.getElementById('acum-helices-' + idx);
-  if (amot) amot.innerHTML = parseFloat(d.ciclos_totales).toFixed(1) + ' <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span>';
-  if (ahel) ahel.innerHTML = parseFloat(d.ciclos_limite).toFixed(1) + ' <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span>';
+  if (amot) amot.textContent = parseFloat(d.ciclos_totales||0).toFixed(1);
+  if (ahel) ahel.textContent = parseFloat(d.ciclos_limite||0).toFixed(1);
   updateVencBar('motor', idx, d.ciclos_totales, 2000);
   updateVencBar('helices', idx, d.ciclos_limite, 2000);
   const ulDiv = document.getElementById('ultimo-venc-' + idx);
@@ -1345,10 +1368,10 @@ function savePanel(idx) {
     // Update display
     const amot = document.getElementById('acum-motor-' + idx);
     const ahel = document.getElementById('acum-helices-' + idx);
-    if (amot) amot.innerHTML = parseFloat(d.ciclos_totales).toFixed(1) + ' <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span>';
-    if (ahel) ahel.innerHTML = parseFloat(d.ciclos_limite).toFixed(1) + ' <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span>';
-    updateVencBar('motor', idx, d.ciclos_totales, 2000);
-    updateVencBar('helices', idx, d.ciclos_limite, 2000);
+    if (amot) amot.textContent = parseFloat(d.ciclos_totales||0).toFixed(1);
+    if (ahel) ahel.textContent = parseFloat(d.ciclos_limite||0).toFixed(1);
+    updateVencBar('motor', idx, d.ciclos_totales, getLimite('motor', idx));
+    updateVencBar('helices', idx, d.ciclos_limite, getLimite('helices', idx));
     const fmEl = document.getElementById('fecha-motor-' + idx);
     const fhEl = document.getElementById('fecha-helices-' + idx);
     if (fmEl) fmEl.textContent = fechaV;
@@ -1375,8 +1398,10 @@ function savePanel(idx) {
   d.horas_hasta_revision = getVal('horas_hasta-' + idx);
   const notaEl = document.getElementById('estatus_nota-' + idx);
   if (notaEl) d.estatus_nota = notaEl.value;
-  d.fecha_motor  = state[idx].fecha_motor  || d.fecha_motor  || '';
+  d.fecha_motor   = state[idx].fecha_motor   || d.fecha_motor   || '';
   d.fecha_helices = state[idx].fecha_helices || d.fecha_helices || '';
+  d.limite_motor  = getVal('limite-motor-' + idx) || d.limite_motor || '2000';
+  d.limite_helice = getVal('limite-helices-' + idx) || d.limite_helice || '2000';
   d.emerg_salvavidas = getVal('emerg-salvavidas-' + idx);
   d.emerg_extintor   = getVal('emerg-extintor-' + idx);
   d.emerg_flares     = getVal('emerg-flares-' + idx);
@@ -2015,10 +2040,10 @@ function refreshPanel(idx) {
   // Update motor/helices accum display
   const amot = document.getElementById('acum-motor-' + idx);
   const ahel = document.getElementById('acum-helices-' + idx);
-  if (amot) amot.innerHTML = parseFloat(d.ciclos_totales||0).toFixed(1) + ' <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span>';
-  if (ahel) ahel.innerHTML = parseFloat(d.ciclos_limite||0).toFixed(1) + ' <span style="font-size:9px;color:var(--accent)">/ 2000 HV</span>';
-  if (d.ciclos_totales) updateVencBar('motor', idx, d.ciclos_totales, 2000);
-  if (d.ciclos_limite) updateVencBar('helices', idx, d.ciclos_limite, 2000);
+  if (amot) amot.textContent = parseFloat(d.ciclos_totales||0).toFixed(1);
+  if (ahel) ahel.textContent = parseFloat(d.ciclos_limite||0).toFixed(1);
+  if (d.ciclos_totales) updateVencBar('motor', idx, d.ciclos_totales, parseFloat(d.limite_motor||2000));
+  if (d.ciclos_limite) updateVencBar('helices', idx, d.ciclos_limite, parseFloat(d.limite_helice||2000));
   const fm = document.getElementById('fecha-motor-' + idx);
   if (fm && d.fecha_motor) fm.textContent = d.fecha_motor;
   const fh = document.getElementById('fecha-helices-' + idx);

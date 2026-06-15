@@ -469,6 +469,8 @@ function defaultAc(ac) {
     serial: "", year: "", voltaje: "", motor_fabricante: "", motor_modelo: "", motor_serie: "", helice_fabricante: "", helice_modelo: "", helice_serie: "", limite_motor: "2000", limite_helice: "2000", horas_diarias: "", horas_acum_50: "", horas_acum_100: "", bitacora_horas: [], ultimo_venc_hv: "", ultimo_venc_fecha: "",
     horas_totales: "", horas_limite: "", fecha_50: "", fecha_100: "",
     ciclos_totales: "", ciclos_limite: "",
+    helice1_ciclos: "", helice1_limite: "2000", fecha_helice1: "",
+    helice2_ciclos: "", helice2_limite: "2000", fecha_helice2: "",
     horas_desde_revision: "", horas_hasta_revision: "", estatus_nota: "",
     mantenimiento: [
       { nombre: "", fecha: "", resuelto: false, piezas: [] },
@@ -542,10 +544,9 @@ function vencBarLabel(hv, limit) {
   return parseFloat(rem) > 0 ? `Quedan ${rem} HV (${100-used}%)` : 'VENCIDO';
 }
 function updateVencBar(tipo, idx, val, limit) {
-  const pbId = tipo === 'motor' ? 'pb-motor-' : 'pb-helices-';
-  const pctId = tipo === 'motor' ? 'pct-motor-' : 'pct-helices-';
-  const pb = document.getElementById(pbId + idx);
-  const pct = document.getElementById(pctId + idx);
+  const tipoId = tipo === 'motor' ? 'motor' : (tipo === 'helices' ? 'helices' : tipo);
+  const pb = document.getElementById('pb-' + tipoId + '-' + idx);
+  const pct = document.getElementById('pct-' + tipoId + '-' + idx);
   if (pb) { pb.style.width = vencBarPct(val, limit) + '%'; pb.className = 'progress-fill ' + vencBarCls(val, limit); }
   if (pct) pct.textContent = vencBarLabel(val, limit);
 }
@@ -575,6 +576,34 @@ function gaugeColor(v, m) {
   if (p >= 0.85) return '#ff4455';
   if (p >= 0.6) return '#ffaa00';
   return '#00e599';
+}
+
+// Render one "Vencimiento en Horas" item (Motor, Helices, Helice1, Helice2, etc.)
+// fieldMapKey: key in VENC_FIELD_MAP. manualInputId: id for the manual total input.
+function vencItemHtml(idx, label, fieldMapKey, manualInputId, value, limite, fechaField, data, isLast) {
+  const v = value !== undefined && value !== '' ? parseFloat(value).toFixed(1) : '';
+  return `
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span class="field-label">${label}</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">Total manual:</span>
+              <input type="number" class="field-input" id="${manualInputId}-${idx}" value="${v}" placeholder="0.0" step="0.1" style="width:75px;font-size:10px" oninput="establecerTotalVenc('${fieldMapKey}',${idx},this.value)">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">HV</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-bottom:2px">
+            <span style="font-family:'Orbitron',sans-serif;font-size:13px;color:var(--text)" id="acum-${fieldMapKey}-${idx}">${parseFloat(value||0).toFixed(1)}</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">/</span>
+            <input type="number" id="limite-${fieldMapKey}-${idx}" value="${limite||2000}" step="100" style="width:65px;font-family:'IBM Plex Mono',monospace;font-size:9px;border:1px solid var(--border);border-radius:8px;background:var(--panel2);color:var(--accent);text-align:center;padding:1px 4px" oninput="updateLimiteVenc('${fieldMapKey}',${idx},this.value)">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--accent)">HV</span>
+          </div>
+          <div class="progress-bar" style="margin-bottom:2px">
+            <div id="pb-${fieldMapKey}-${idx}" class="progress-fill ${vencBarCls(value,2000)}" style="width:${vencBarPct(value,2000)}%"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between${isLast ? '' : ';margin-bottom:10px'}">
+            <span class="pct-text" id="pct-${fieldMapKey}-${idx}">${vencBarLabel(value,2000)}</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">Actualizado: <span id="fecha-${fieldMapKey}-${idx}" style="color:var(--accent)">${fechaField||'—'}</span></span>
+          </div>`;
 }
 
 function buildPanel(ac, data, idx) {
@@ -715,54 +744,20 @@ function buildPanel(ac, data, idx) {
           </div>
         </div>
         <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px">
-          <!-- Motor -->
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-            <span class="field-label">Motor</span>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">Total manual:</span>
-              <input type="number" class="field-input" id="motor-manual-${idx}" value="${data.ciclos_totales!==undefined && data.ciclos_totales!=='' ? parseFloat(data.ciclos_totales).toFixed(1) : ''}" placeholder="0.0" step="0.1" style="width:75px;font-size:10px" oninput="establecerTotalVenc('motor',${idx},this.value)">
-              <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">HV</span>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-bottom:2px">
-            <span style="font-family:'Orbitron',sans-serif;font-size:13px;color:var(--text)" id="acum-motor-${idx}">${parseFloat(data.ciclos_totales||0).toFixed(1)}</span>
-            <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">/</span>
-            <input type="number" id="limite-motor-${idx}" value="${data.limite_motor||2000}" step="100" style="width:65px;font-family:'IBM Plex Mono',monospace;font-size:9px;border:1px solid var(--border);border-radius:8px;background:var(--panel2);color:var(--accent);text-align:center;padding:1px 4px" oninput="updateLimiteVenc('motor',${idx},this.value)">
-            <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--accent)">HV</span>
-          </div>
-          <div class="progress-bar" style="margin-bottom:2px">
-            <div id="pb-motor-${idx}" class="progress-fill ${vencBarCls(data.ciclos_totales,2000)}" style="width:${vencBarPct(data.ciclos_totales,2000)}%"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;margin-bottom:10px">
-            <span class="pct-text" id="pct-motor-${idx}">${vencBarLabel(data.ciclos_totales,2000)}</span>
-            <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">Actualizado: <span id="fecha-motor-${idx}" style="color:var(--accent)">${data.fecha_motor||'—'}</span></span>
-          </div>
-          <!-- Helices -->
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-            <span class="field-label">Hélices</span>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">Total manual:</span>
-              <input type="number" class="field-input" id="helices-manual-${idx}" value="${data.ciclos_limite!==undefined && data.ciclos_limite!=='' ? parseFloat(data.ciclos_limite).toFixed(1) : ''}" placeholder="0.0" step="0.1" style="width:75px;font-size:10px" oninput="establecerTotalVenc('helices',${idx},this.value)">
-              <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">HV</span>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-bottom:2px">
-            <span style="font-family:'Orbitron',sans-serif;font-size:13px;color:var(--text)" id="acum-helices-${idx}">${parseFloat(data.ciclos_limite||0).toFixed(1)}</span>
-            <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">/</span>
-            <input type="number" id="limite-helices-${idx}" value="${data.limite_helice||2000}" step="100" style="width:65px;font-family:'IBM Plex Mono',monospace;font-size:9px;border:1px solid var(--border);border-radius:8px;background:var(--panel2);color:var(--accent);text-align:center;padding:1px 4px" oninput="updateLimiteVenc('helices',${idx},this.value)">
-            <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--accent)">HV</span>
-          </div>
-          <div class="progress-bar" style="margin-bottom:2px">
-            <div id="pb-helices-${idx}" class="progress-fill ${vencBarCls(data.ciclos_limite,2000)}" style="width:${vencBarPct(data.ciclos_limite,2000)}%"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between">
-            <span class="pct-text" id="pct-helices-${idx}">${vencBarLabel(data.ciclos_limite,2000)}</span>
-            <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">Actualizado: <span id="fecha-helices-${idx}" style="color:var(--accent)">${data.fecha_helices||'—'}</span></span>
-          </div>
+          ${vencItemHtml(idx, ac.reg === 'HP-880BL' ? 'Motor 1' : 'Motor', 'motor', 'motor-manual', data.ciclos_totales, data.limite_motor, data.fecha_motor, data, false)}
+          ${vencItemHtml(idx, ac.reg === 'HP-880BL' ? 'Motor 2' : 'Hélices', 'helices', 'helices-manual', data.ciclos_limite, data.limite_helice, data.fecha_helices, data, ac.reg !== 'HP-880BL')}
+          ${ac.reg === 'HP-880BL' ? `
+          <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:6px">
+            ${vencItemHtml(idx, 'Hélice 1', 'helice1', 'helice1-manual', data.helice1_ciclos, data.helice1_limite, data.fecha_helice1, data, false)}
+            ${vencItemHtml(idx, 'Hélice 2', 'helice2', 'helice2-manual', data.helice2_ciclos, data.helice2_limite, data.fecha_helice2, data, true)}
+          </div>` : ''}
         </div>
         <!-- Hidden fields for compatibility -->
         <input type="hidden" id="ciclos_totales-${idx}" value="${data.ciclos_totales||''}">
         <input type="hidden" id="ciclos_limite-${idx}" value="${data.ciclos_limite||''}">
+        ${ac.reg === 'HP-880BL' ? `
+        <input type="hidden" id="helice1_ciclos-${idx}" value="${data.helice1_ciclos||''}">
+        <input type="hidden" id="helice2_ciclos-${idx}" value="${data.helice2_ciclos||''}">` : ''}
         <div style="display:none"><div id="pb-ciclos-${idx}"></div><span id="pct-ciclos-${idx}"></span></div>
         <!-- Ultimo registro -->
         <div id="ultimo-venc-${idx}" style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px;display:${data.ultimo_venc_hv?'flex':'none'};justify-content:space-between;align-items:center">
@@ -1278,69 +1273,64 @@ function updateEstatusBadge(idx, status, label) {
   badge.textContent = label || (status==='operativo'?'✅ OPERATIVO':status==='mantenimiento'?'🔧 MANTENIMIENTO':'🔴 GROUNDED');
 }
 
+// Generic mapping for "Vencimientos en Horas" fields, supports motor/helices and helice1/helice2 (HP-880BL)
+const VENC_FIELD_MAP = {
+  motor:    { dataField: 'ciclos_totales', limiteField: 'limite_motor',  acumId: 'acum-motor-',    hiddenId: 'ciclos_totales-' },
+  helices:  { dataField: 'ciclos_limite',  limiteField: 'limite_helice', acumId: 'acum-helices-',  hiddenId: 'ciclos_limite-' },
+  helice1:  { dataField: 'helice1_ciclos', limiteField: 'helice1_limite',acumId: 'acum-helice1-',  hiddenId: 'helice1_ciclos-' },
+  helice2:  { dataField: 'helice2_ciclos', limiteField: 'helice2_limite',acumId: 'acum-helice2-',  hiddenId: 'helice2_ciclos-' }
+};
+
 function getLimite(tipo, idx) {
+  const map = VENC_FIELD_MAP[tipo];
   const el = document.getElementById('limite-' + tipo + '-' + idx);
-  return parseFloat(el ? el.value : (tipo==='motor' ? state[idx].limite_motor : state[idx].limite_helice) || 2000) || 2000;
+  return parseFloat(el ? el.value : (state[idx][map.limiteField]) || 2000) || 2000;
 }
 
 function updateLimiteVenc(tipo, idx, val) {
   const d = state[idx];
+  const map = VENC_FIELD_MAP[tipo];
   const l = parseFloat(val) || 2000;
-  if (tipo === 'motor') d.limite_motor = l.toString();
-  else d.limite_helice = l.toString();
-  updateVencBar(tipo, idx, tipo==='motor' ? d.ciclos_totales : d.ciclos_limite, l);
+  d[map.limiteField] = l.toString();
+  updateVencBar(tipo, idx, d[map.dataField], l);
 }
 
 function establecerTotalVenc(tipo, idx, val) {
   const d = state[idx];
+  const map = VENC_FIELD_MAP[tipo];
   const v = parseFloat(val) || 0;
-  if (tipo === 'motor') {
-    d.ciclos_totales = v.toFixed(1);
-    const el = document.getElementById('ciclos_totales-' + idx);
-    if (el) el.value = d.ciclos_totales;
-    const am = document.getElementById('acum-motor-' + idx);
-    if (am) am.textContent = v.toFixed(1);
-    updateVencBar('motor', idx, v, getLimite('motor', idx));
-  } else {
-    d.ciclos_limite = v.toFixed(1);
-    const el = document.getElementById('ciclos_limite-' + idx);
-    if (el) el.value = d.ciclos_limite;
-    const ah = document.getElementById('acum-helices-' + idx);
-    if (ah) ah.textContent = v.toFixed(1);
-    updateVencBar('helices', idx, v, getLimite('helices', idx));
-  }
+  d[map.dataField] = v.toFixed(1);
+  const el = document.getElementById(map.hiddenId + idx);
+  if (el) el.value = d[map.dataField];
+  const am = document.getElementById(map.acumId + idx);
+  if (am) am.textContent = v.toFixed(1);
+  updateVencBar(tipo, idx, v, getLimite(tipo, idx));
 }
+
 
 function revertirVenc(idx) {
   const d = state[idx];
   if (!d.ultimo_venc_hv) return;
   const hv = parseFloat(d.ultimo_venc_hv);
-  d.ciclos_totales = Math.max(0, parseFloat(d.ciclos_totales||0) - hv).toFixed(1);
-  d.ciclos_limite  = Math.max(0, parseFloat(d.ciclos_limite||0)  - hv).toFixed(1);
+  const isHP880 = fleet[idx].reg === 'HP-880BL';
+  const vencTipos = isHP880 ? ['motor','helices','helice1','helice2'] : ['motor','helices'];
+  vencTipos.forEach(tipo => {
+    const map = VENC_FIELD_MAP[tipo];
+    d[map.dataField] = Math.max(0, parseFloat(d[map.dataField]||0) - hv).toFixed(1);
+    const manInp = document.getElementById((tipo==='motor'?'motor-manual':tipo==='helices'?'helices-manual':tipo+'-manual') + '-' + idx);
+    if (manInp) manInp.value = d[map.dataField] || '';
+    const limInp = document.getElementById('limite-' + tipo + '-' + idx);
+    if (limInp) limInp.value = d[map.limiteField] || '2000';
+    const acumEl = document.getElementById(map.acumId + idx);
+    if (acumEl) acumEl.textContent = parseFloat(d[map.dataField]||0).toFixed(1);
+    updateVencBar(tipo, idx, d[map.dataField], 2000);
+    const hiddenEl = document.getElementById(map.hiddenId + idx);
+    if (hiddenEl) hiddenEl.value = d[map.dataField];
+  });
   d.ultimo_venc_hv = '';
   d.ultimo_venc_fecha = '';
-  // Update display
-  // Fill manual total inputs
-  const motMan = document.getElementById('motor-manual-' + idx);
-  if (motMan) motMan.value = d.ciclos_totales || '';
-  const helMan = document.getElementById('helices-manual-' + idx);
-  if (helMan) helMan.value = d.ciclos_limite || '';
-  const limMot = document.getElementById('limite-motor-' + idx);
-  if (limMot) limMot.value = d.limite_motor || '2000';
-  const limHel = document.getElementById('limite-helices-' + idx);
-  if (limHel) limHel.value = d.limite_helice || '2000';
-  const amot = document.getElementById('acum-motor-' + idx);
-  const ahel = document.getElementById('acum-helices-' + idx);
-  if (amot) amot.textContent = parseFloat(d.ciclos_totales||0).toFixed(1);
-  if (ahel) ahel.textContent = parseFloat(d.ciclos_limite||0).toFixed(1);
-  updateVencBar('motor', idx, d.ciclos_totales, 2000);
-  updateVencBar('helices', idx, d.ciclos_limite, 2000);
   const ulDiv = document.getElementById('ultimo-venc-' + idx);
   if (ulDiv) ulDiv.style.display = 'none';
-  const ht = document.getElementById('ciclos_totales-' + idx);
-  const hl = document.getElementById('ciclos_limite-' + idx);
-  if (ht) ht.value = d.ciclos_totales;
-  if (hl) hl.value = d.ciclos_limite;
   savePanel(idx);
 }
 
@@ -1420,26 +1410,26 @@ function savePanel(idx) {
   d.horas_limite  = d.horas_acum_100 || '';
   d.fecha_50      = state[idx].fecha_50 || d.fecha_50 || '';
   d.fecha_100     = state[idx].fecha_100 || d.fecha_100 || '';
-  // Daily hours for motor+helices
+  // Daily hours for motor+helices (+ helice1/helice2 for HP-880BL)
   const hvVencDia = parseFloat(document.getElementById('horas-venc-dia-' + idx)?.value || 0);
   if (hvVencDia > 0) {
     const fechaV = getFechaPanama();
-    d.ciclos_totales = (parseFloat(d.ciclos_totales || 0) + hvVencDia).toFixed(1);
-    d.ciclos_limite  = (parseFloat(d.ciclos_limite  || 0) + hvVencDia).toFixed(1);
     const horaV = getHoraPanama();
-    d.fecha_motor    = fechaV + ' ' + horaV;
-    d.fecha_helices  = fechaV + ' ' + horaV;
-    // Update display
-    const amot = document.getElementById('acum-motor-' + idx);
-    const ahel = document.getElementById('acum-helices-' + idx);
-    if (amot) amot.textContent = parseFloat(d.ciclos_totales||0).toFixed(1);
-    if (ahel) ahel.textContent = parseFloat(d.ciclos_limite||0).toFixed(1);
-    updateVencBar('motor', idx, d.ciclos_totales, getLimite('motor', idx));
-    updateVencBar('helices', idx, d.ciclos_limite, getLimite('helices', idx));
-    const fmEl = document.getElementById('fecha-motor-' + idx);
-    const fhEl = document.getElementById('fecha-helices-' + idx);
-    if (fmEl) fmEl.textContent = fechaV;
-    if (fhEl) fhEl.textContent = fechaV;
+    const isHP880 = fleet[idx].reg === 'HP-880BL';
+    const vencTipos = isHP880 ? ['motor','helices','helice1','helice2'] : ['motor','helices'];
+    vencTipos.forEach(tipo => {
+      const map = VENC_FIELD_MAP[tipo];
+      d[map.dataField] = (parseFloat(d[map.dataField] || 0) + hvVencDia).toFixed(1);
+      const fechaFieldName = tipo === 'motor' ? 'fecha_motor' : tipo === 'helices' ? 'fecha_helices' : 'fecha_' + tipo;
+      d[fechaFieldName] = fechaV + ' ' + horaV;
+      const acumEl = document.getElementById(map.acumId + idx);
+      if (acumEl) acumEl.textContent = parseFloat(d[map.dataField]||0).toFixed(1);
+      updateVencBar(tipo, idx, d[map.dataField], getLimite(tipo, idx));
+      const fEl = document.getElementById('fecha-' + tipo + '-' + idx);
+      if (fEl) fEl.textContent = fechaV;
+      const hiddenEl = document.getElementById(map.hiddenId + idx);
+      if (hiddenEl) hiddenEl.value = d[map.dataField];
+    });
     // Save ultimo registro
     d.ultimo_venc_hv = hvVencDia.toFixed(1);
     d.ultimo_venc_fecha = fechaV + ' ' + horaV;
@@ -1452,11 +1442,6 @@ function savePanel(idx) {
     // Clear input
     const vencInp = document.getElementById('horas-venc-dia-' + idx);
     if (vencInp) vencInp.value = '';
-    // Update hidden fields
-    const ht = document.getElementById('ciclos_totales-' + idx);
-    const hl = document.getElementById('ciclos_limite-' + idx);
-    if (ht) ht.value = d.ciclos_totales;
-    if (hl) hl.value = d.ciclos_limite;
   }
   d.horas_desde_revision = getVal('horas_desde-' + idx);
   d.horas_hasta_revision = getVal('horas_hasta-' + idx);
@@ -1466,6 +1451,12 @@ function savePanel(idx) {
   d.fecha_helices = state[idx].fecha_helices || d.fecha_helices || '';
   d.limite_motor  = getVal('limite-motor-' + idx) || d.limite_motor || '2000';
   d.limite_helice = getVal('limite-helices-' + idx) || d.limite_helice || '2000';
+  if (fleet[idx].reg === 'HP-880BL') {
+    d.fecha_helice1  = state[idx].fecha_helice1  || d.fecha_helice1  || '';
+    d.fecha_helice2  = state[idx].fecha_helice2  || d.fecha_helice2  || '';
+    d.helice1_limite = getVal('limite-helice1-' + idx) || d.helice1_limite || '2000';
+    d.helice2_limite = getVal('limite-helice2-' + idx) || d.helice2_limite || '2000';
+  }
   d.emerg_salvavidas = getVal('emerg-salvavidas-' + idx);
   d.emerg_extintor   = getVal('emerg-extintor-' + idx);
   d.emerg_flares     = getVal('emerg-flares-' + idx);
@@ -1958,17 +1949,32 @@ function buildResumen() {
       const pctUsed = parseFloat(d.ciclos_totales) / 2000 * 100;
       if (pctUsed >= 80) {
         const rem = (2000 - parseFloat(d.ciclos_totales)).toFixed(1);
-        addAlert('⚙️ Vencimientos en Horas', reg, 'Motor', `Quedan ${rem} HV (${Math.round(100-pctUsed)}%)`, 'danger');
+        addAlert('⚙️ Vencimientos en Horas', reg, reg === 'HP-880BL' ? 'Motor 1' : 'Motor', `Quedan ${rem} HV (${Math.round(100-pctUsed)}%)`, 'danger');
       }
     }
 
-    // Helices (horas)
+    // Helices / Motor 2 (horas)
     if (d.ciclos_limite) {
       const pctUsed = parseFloat(d.ciclos_limite) / 2000 * 100;
       if (pctUsed >= 80) {
         const rem = (2000 - parseFloat(d.ciclos_limite)).toFixed(1);
-        addAlert('⚙️ Vencimientos en Horas', reg, 'Hélices', `Quedan ${rem} HV (${Math.round(100-pctUsed)}%)`, 'danger');
+        addAlert('⚙️ Vencimientos en Horas', reg, reg === 'HP-880BL' ? 'Motor 2' : 'Hélices', `Quedan ${rem} HV (${Math.round(100-pctUsed)}%)`, 'danger');
       }
+    }
+
+    // Helice 1 / Helice 2 (HP-880BL)
+    if (reg === 'HP-880BL') {
+      ['helice1','helice2'].forEach((tipo, i) => {
+        const val = d[tipo + '_ciclos'];
+        const limite = parseFloat(d[tipo + '_limite'] || 2000);
+        if (val) {
+          const pctUsed = parseFloat(val) / limite * 100;
+          if (pctUsed >= 80) {
+            const rem = (limite - parseFloat(val)).toFixed(1);
+            addAlert('⚙️ Vencimientos en Horas', reg, 'Hélice ' + (i+1), `Quedan ${rem} HV (${Math.round(100-pctUsed)}%)`, 'danger');
+          }
+        }
+      });
     }
 
     // Inspecciones 50/100 hrs — solo alerta la más alta que aplique
@@ -2114,15 +2120,27 @@ function resolverHoras(reg, item) {
   if (idx === -1) return;
   const d = state[idx];
 
-  if (item.includes('Motor')) { 
+  if (item === 'Motor' || item === 'Motor 1') {
     d.ciclos_totales = '0'; 
     const el = document.getElementById('ciclos_totales-'+idx); 
     if(el) { el.value='0'; updateVencBar('motor',idx,'0',2000); updateHorasWarning(el,2000); }
   }
-  if (item.includes('Hélices')) { 
+  if (item === 'Hélices' || item === 'Motor 2') { 
     d.ciclos_limite = '0'; 
     const el = document.getElementById('ciclos_limite-'+idx); 
     if(el) { el.value='0'; updateVencBar('helices',idx,'0',2000); updateHorasWarning(el,2000); }
+  }
+  if (item === 'Hélice 1' || item === 'Hélice 2') {
+    const tipo = item === 'Hélice 1' ? 'helice1' : 'helice2';
+    const map = VENC_FIELD_MAP[tipo];
+    d[map.dataField] = '0';
+    const el = document.getElementById(map.hiddenId + idx);
+    if (el) el.value = '0';
+    const am = document.getElementById(map.acumId + idx);
+    if (am) am.textContent = '0.0';
+    const manInp = document.getElementById(tipo + '-manual-' + idx);
+    if (manInp) manInp.value = '0.0';
+    updateVencBar(tipo, idx, '0', parseFloat(d[map.limiteField]||2000));
   }
   if (item.includes('50 hrs')) { 
     // Reset only 50 hrs accumulator
@@ -2306,6 +2324,21 @@ function refreshPanel(idx) {
   if (fm && d.fecha_motor) fm.textContent = d.fecha_motor;
   const fh = document.getElementById('fecha-helices-' + idx);
   if (fh && d.fecha_helices) fh.textContent = d.fecha_helices;
+  // Helice1/Helice2 (HP-880BL)
+  if (fleet[idx].reg === 'HP-880BL') {
+    sv('helice1_ciclos-', d.helice1_ciclos);
+    sv('helice2_ciclos-', d.helice2_ciclos);
+    const ah1 = document.getElementById('acum-helice1-' + idx);
+    const ah2 = document.getElementById('acum-helice2-' + idx);
+    if (ah1) ah1.textContent = parseFloat(d.helice1_ciclos||0).toFixed(1);
+    if (ah2) ah2.textContent = parseFloat(d.helice2_ciclos||0).toFixed(1);
+    if (d.helice1_ciclos) updateVencBar('helice1', idx, d.helice1_ciclos, parseFloat(d.helice1_limite||2000));
+    if (d.helice2_ciclos) updateVencBar('helice2', idx, d.helice2_ciclos, parseFloat(d.helice2_limite||2000));
+    const fh1 = document.getElementById('fecha-helice1-' + idx);
+    if (fh1 && d.fecha_helice1) fh1.textContent = d.fecha_helice1;
+    const fh2 = document.getElementById('fecha-helice2-' + idx);
+    if (fh2 && d.fecha_helice2) fh2.textContent = d.fecha_helice2;
+  }
   // Ultimo venc registro
   const ulDiv = document.getElementById('ultimo-venc-' + idx);
   if (ulDiv && d.ultimo_venc_hv) {

@@ -9,6 +9,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fleet Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
   :root {
     --bg: #cfd8e3;
@@ -1744,6 +1745,9 @@ statsPanel.innerHTML = `
     <div class="aircraft-reg">ESTADÍSTICAS</div>
     <div class="aircraft-model-line">HORAS VOLADAS POR MES · POR MATRÍCULA</div>
   </div>
+  <div class="card" style="margin-bottom:18px;padding:18px">
+    <div style="height:340px"><canvas id="stats-chart"></canvas></div>
+  </div>
   <div id="estadisticas-content"><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);padding:20px 0">Cargando...</div></div>
 `;
 contentEl.insertBefore(statsPanel, resumenPanel.nextSibling);
@@ -1790,6 +1794,43 @@ function buildEstadisticas() {
   function monthLabel(key) {
     const [y, m] = key.split('-');
     return `${MESES[parseInt(m,10)]} ${y}`;
+  }
+
+  // ===== Bar chart: hours per month, grouped by aircraft =====
+  const PALETTE = ['#0059b3','#c47000','#006638','#b80f1e','#6a3fb5','#0aa3a3','#a0522d','#3d5a80','#8a8a00','#9b1d6b','#2e8b57','#5a5a5a'];
+  const chartCanvas = document.getElementById('stats-chart');
+  if (chartCanvas) {
+    if (window._statsChart) { window._statsChart.destroy(); }
+    window._statsChart = new Chart(chartCanvas, {
+      type: 'bar',
+      data: {
+        labels: months.map(monthLabel),
+        datasets: dataByAc.map((ac, i) => ({
+          label: ac.reg,
+          data: months.map(m => ac.monthly[m] ? +ac.monthly[m].toFixed(1) : 0),
+          backgroundColor: PALETTE[i % PALETTE.length]
+        }))
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { ticks: { font: { family: "'IBM Plex Mono', monospace", size: 10 } }, grid: { display: false } },
+          y: { beginAtZero: true, title: { display: true, text: 'Horas (HV)' }, ticks: { font: { family: "'IBM Plex Mono', monospace", size: 10 } } }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { family: "'Orbitron', sans-serif", size: 10 } } },
+          tooltip: {
+            callbacks: {
+              footer: (items) => {
+                const total = items.reduce((s, it) => s + it.parsed.y, 0);
+                return 'Total mes: ' + total.toFixed(1) + ' HV';
+              }
+            }
+          }
+        }
+      }
+    });
   }
 
   // Build table: rows = aircraft, columns = months (+ total)

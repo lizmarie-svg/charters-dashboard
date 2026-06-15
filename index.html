@@ -1354,8 +1354,8 @@ function onStatusChange(idx, val) {
   updateEstatusBadge(idx, val, d.estatus_label || label);
   // Update tab badge
   const tabs = document.querySelectorAll('#sidebar-tabs .aircraft-tab');
-  if (tabs[idx+1]) {
-    const dot = tabs[idx+1].querySelector('.tab-badge');
+  if (tabs[idx+2]) {
+    const dot = tabs[idx+2].querySelector('.tab-badge');
     if (dot) dot.className = 'tab-badge ' + (val==='operativo'?'badge-ok':val==='mantenimiento'?'badge-warn':'badge-danger');
   }
 }
@@ -1558,6 +1558,19 @@ resumenTab.addEventListener('click', () => {
 });
 sidebarEl.insertBefore(resumenTab, sidebarEl.firstChild);
 
+// ESTADISTICAS tab below PENDIENTES
+const statsTab = document.createElement('div');
+statsTab.className = 'aircraft-tab';
+statsTab.innerHTML = '<div class="tab-reg" style="font-size:10px;color:var(--accent)">📊 ESTADÍSTICAS</div>';
+statsTab.addEventListener('click', () => {
+  document.querySelectorAll('.aircraft-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.aircraft-panel').forEach(p => p.classList.remove('active'));
+  statsTab.classList.add('active');
+  document.getElementById('panel-estadisticas').classList.add('active');
+  buildEstadisticas();
+});
+sidebarEl.insertBefore(statsTab, resumenTab.nextSibling);
+
 fleet.forEach((ac, idx) => {
   // Group headers
   if (ac.reg === 'HP-1819BL') {
@@ -1721,6 +1734,105 @@ resumenPanel.innerHTML = `
   <div id="resumen-content"><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);padding:20px 0">Cargando...</div></div>
 `;
 contentEl.insertBefore(resumenPanel, contentEl.firstChild);
+
+// Build Estadisticas panel
+const statsPanel = document.createElement('div');
+statsPanel.className = 'aircraft-panel';
+statsPanel.id = 'panel-estadisticas';
+statsPanel.innerHTML = `
+  <div style="margin-bottom:20px">
+    <div class="aircraft-reg">ESTADÍSTICAS</div>
+    <div class="aircraft-model-line">HORAS VOLADAS POR MES · POR MATRÍCULA</div>
+  </div>
+  <div id="estadisticas-content"><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);padding:20px 0">Cargando...</div></div>
+`;
+contentEl.insertBefore(statsPanel, resumenPanel.nextSibling);
+
+function buildEstadisticas() {
+  const container = document.getElementById('estadisticas-content');
+
+  // Parse "DD/MM/YYYY" -> {year, month, monthKey "YYYY-MM"}
+  function parseFecha(fecha) {
+    if (!fecha) return null;
+    const parts = fecha.split('/');
+    if (parts.length !== 3) return null;
+    const [dd, mm, yyyy] = parts;
+    if (!dd || !mm || !yyyy) return null;
+    return { year: yyyy, month: mm, key: `${yyyy}-${mm}` };
+  }
+
+  // Aggregate hours by aircraft + month
+  const monthSet = new Set(); // all month keys seen, across fleet
+  const dataByAc = []; // { reg, model, monthly: {key: hours}, total }
+
+  state.forEach((d, idx) => {
+    const monthly = {};
+    let total = 0;
+    (d.bitacora_horas || []).forEach(r => {
+      const f = parseFecha(r.fecha);
+      const hv = parseFloat(r.hv || 0);
+      if (!f || isNaN(hv)) return;
+      monthly[f.key] = (monthly[f.key] || 0) + hv;
+      total += hv;
+      monthSet.add(f.key);
+    });
+    dataByAc.push({ reg: fleet[idx].reg, model: fleet[idx].model, monthly, total });
+  });
+
+  if (monthSet.size === 0) {
+    container.innerHTML = `<div style="text-align:center;padding:40px 0;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted)">Sin registros de horas voladas todavía</div>`;
+    return;
+  }
+
+  // Sort months chronologically
+  const months = Array.from(monthSet).sort();
+  const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  function monthLabel(key) {
+    const [y, m] = key.split('-');
+    return `${MESES[parseInt(m,10)]} ${y}`;
+  }
+
+  // Build table: rows = aircraft, columns = months (+ total)
+  let html = `<div class="card" style="overflow-x:auto;padding:0">
+    <table style="width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:11px">
+      <thead>
+        <tr style="background:var(--panel2)">
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid var(--border);position:sticky;left:0;background:var(--panel2);white-space:nowrap">Matrícula</th>
+          ${months.map(m => `<th style="text-align:right;padding:10px 14px;border-bottom:2px solid var(--border);white-space:nowrap">${monthLabel(m)}</th>`).join('')}
+          <th style="text-align:right;padding:10px 14px;border-bottom:2px solid var(--border);white-space:nowrap;color:var(--accent)">Total</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+  dataByAc.forEach(ac => {
+    html += `<tr>
+      <td style="padding:9px 14px;border-bottom:1px solid var(--border);font-weight:700;color:var(--text);position:sticky;left:0;background:var(--panel);white-space:nowrap">
+        ${ac.reg}<div style="font-weight:400;color:var(--muted);font-size:9px;margin-top:2px">${ac.model||''}</div>
+      </td>`;
+    months.forEach(m => {
+      const hrs = ac.monthly[m];
+      html += `<td style="text-align:right;padding:9px 14px;border-bottom:1px solid var(--border);color:${hrs ? 'var(--text)' : 'var(--dim)'}">${hrs ? hrs.toFixed(1) : '—'}</td>`;
+    });
+    html += `<td style="text-align:right;padding:9px 14px;border-bottom:1px solid var(--border);font-weight:700;color:var(--accent)">${ac.total.toFixed(1)}</td>`;
+    html += `</tr>`;
+  });
+
+  // Totals row across fleet
+  html += `<tr style="background:var(--panel2)">
+    <td style="padding:9px 14px;border-top:2px solid var(--border);font-weight:900;color:var(--accent);position:sticky;left:0;background:var(--panel2)">FLOTA TOTAL</td>`;
+  let grandTotal = 0;
+  months.forEach(m => {
+    let monthTotal = 0;
+    dataByAc.forEach(ac => { monthTotal += (ac.monthly[m] || 0); });
+    grandTotal += monthTotal;
+    html += `<td style="text-align:right;padding:9px 14px;border-top:2px solid var(--border);font-weight:700;color:var(--text)">${monthTotal ? monthTotal.toFixed(1) : '—'}</td>`;
+  });
+  html += `<td style="text-align:right;padding:9px 14px;border-top:2px solid var(--border);font-weight:900;color:var(--accent)">${grandTotal.toFixed(1)}</td>`;
+  html += `</tr>`;
+
+  html += `</tbody></table></div>`;
+  container.innerHTML = html;
+}
 
 function buildResumen() {
   const DAYS_WARN = 30;
@@ -2150,7 +2262,7 @@ function refreshPanel(idx) {
 
   // Update sidebar badge
   const tabs = document.querySelectorAll('#sidebar-tabs .aircraft-tab');
-  const tab = tabs[idx + 1]; // +1 because resumen tab is first
+  const tab = tabs[idx + 2]; // +2: PENDIENTES and ESTADÍSTICAS tabs come first
   if (tab) {
     const badge = tab.querySelector('.tab-badge');
     if (badge) badge.className = 'tab-badge ' + (d.status === 'operativo' ? 'badge-ok' : d.status === 'mantenimiento' ? 'badge-warn' : d.status === 'aog' ? 'badge-danger' : 'badge-empty');
@@ -2180,6 +2292,8 @@ if (db) {
     // Also rebuild resumen if it's currently visible
     const resPanel = document.getElementById('panel-resumen');
     if (resPanel && resPanel.classList.contains('active')) buildResumen();
+    const statsPanelEl = document.getElementById('panel-estadisticas');
+    if (statsPanelEl && statsPanelEl.classList.contains('active')) buildEstadisticas();
     console.log('Firebase data loaded/updated');
   });
 

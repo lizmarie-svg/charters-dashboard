@@ -8,6 +8,17 @@
   <!-- v=20260521-2 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fleet Dashboard</title>
+
+<!-- PWA -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0059b3">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fleet Dashboard">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link rel="icon" href="./icons/icon-192.png" type="image/png">
+
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
@@ -1230,14 +1241,8 @@ function renderBitacoraHoras(idx, items) {
   container.innerHTML = [...registros].reverse().map((r, ri) => {
     const origIdx = registros.length - 1 - ri;
     const isLast = origIdx === lastIdx;
-    // Convert DD/MM/YYYY -> YYYY-MM-DD for the date input value
-    let isoDate = '';
-    if (r.fecha) {
-      const p = r.fecha.split('/');
-      if (p.length === 3) isoDate = `${p[2]}-${p[1]}-${p[0]}`;
-    }
     return `<div style="display:grid;grid-template-columns:1fr 1fr 80px 80px 30px;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)${isLast?';background:rgba(0,102,204,0.04)':''}">
-      <input type="date" value="${isoDate}" onchange="editarFechaBitacora(${idx},${origIdx},this.value)" style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text);background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:2px 4px;width:100%">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text)">${r.fecha||'—'}</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">${r.hora||'—'}</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--accent);font-weight:700">${parseFloat(r.hv||0).toFixed(1)}</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text)">${parseFloat(r.acum||0).toFixed(1)}</span>
@@ -1774,14 +1779,17 @@ contentEl.insertBefore(statsPanel, resumenPanel.nextSibling);
 function buildEstadisticas() {
   const container = document.getElementById('estadisticas-content');
 
-  // Parse "DD/MM/YYYY" -> {year, month, monthKey "YYYY-MM"}
+  // Parse "MM/DD/YYYY" (es-PA locale format used by getFechaPanama) -> {year, month, monthKey "YYYY-MM"}
   function parseFecha(fecha) {
     if (!fecha) return null;
     const parts = fecha.split('/');
     if (parts.length !== 3) return null;
-    const [dd, mm, yyyy] = parts;
+    const [mm, dd, yyyy] = parts;
     if (!dd || !mm || !yyyy) return null;
-    return { year: yyyy, month: mm, key: `${yyyy}-${mm}` };
+    const monthNum = parseInt(mm, 10);
+    if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) return null;
+    const mmPadded = mm.padStart(2, '0');
+    return { year: yyyy, month: mmPadded, key: `${yyyy}-${mmPadded}` };
   }
 
   // Aggregate hours by aircraft + month
@@ -2494,6 +2502,15 @@ if (db) {
       saved.forEach(p => pilotosData.push(p));
       renderPilotos();
     }
+  });
+}
+
+// Register service worker for PWA (installable + offline app shell)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => {
+      console.warn('Service worker registration failed:', err);
+    });
   });
 }
 </script>

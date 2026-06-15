@@ -1230,8 +1230,14 @@ function renderBitacoraHoras(idx, items) {
   container.innerHTML = [...registros].reverse().map((r, ri) => {
     const origIdx = registros.length - 1 - ri;
     const isLast = origIdx === lastIdx;
+    // Convert DD/MM/YYYY -> YYYY-MM-DD for the date input value
+    let isoDate = '';
+    if (r.fecha) {
+      const p = r.fecha.split('/');
+      if (p.length === 3) isoDate = `${p[2]}-${p[1]}-${p[0]}`;
+    }
     return `<div style="display:grid;grid-template-columns:1fr 1fr 80px 80px 30px;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)${isLast?';background:rgba(0,102,204,0.04)':''}">
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text)">${r.fecha||'—'}</span>
+      <input type="date" value="${isoDate}" onchange="editarFechaBitacora(${idx},${origIdx},this.value)" style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text);background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:2px 4px;width:100%">
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">${r.hora||'—'}</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--accent);font-weight:700">${parseFloat(r.hv||0).toFixed(1)}</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text)">${parseFloat(r.acum||0).toFixed(1)}</span>
@@ -1239,6 +1245,20 @@ function renderBitacoraHoras(idx, items) {
     </div>`;
   }).join('');
 }
+
+// Allow correcting the date of any bitacora_horas entry (e.g. when hours were
+// entered in bulk today but actually correspond to a previous month).
+function editarFechaBitacora(idx, ri, isoValue) {
+  const d = state[idx];
+  if (!d.bitacora_horas || !d.bitacora_horas[ri] || !isoValue) return;
+  const [yyyy, mm, dd] = isoValue.split('-');
+  d.bitacora_horas[ri].fecha = `${dd}/${mm}/${yyyy}`;
+  savePanel(idx);
+  // Refresh stats if visible
+  const statsPanelEl = document.getElementById('panel-estadisticas');
+  if (statsPanelEl && statsPanelEl.classList.contains('active')) buildEstadisticas();
+}
+
 
 function eliminarHoraBitacora(idx, ri) {
   const d = state[idx];
@@ -1737,6 +1757,10 @@ statsPanel.innerHTML = `
     <div class="aircraft-model-line">HORAS VOLADAS POR MES · POR MATRÍCULA</div>
   </div>
   <div class="card" style="margin-bottom:18px;padding:18px">
+    <div class="card-title" style="margin-bottom:10px" id="stats-year-title">🏆 Horas Voladas por Aeronave — Año</div>
+    <div id="stats-ranking-chart-wrap"><canvas id="stats-chart-ranking"></canvas></div>
+  </div>
+  <div class="card" style="margin-bottom:18px;padding:18px">
     <div style="height:340px"><canvas id="stats-chart"></canvas></div>
   </div>
   <div class="card" style="margin-bottom:18px;padding:18px">
@@ -1789,6 +1813,56 @@ function buildEstadisticas() {
   function monthLabel(key) {
     const [y, m] = key.split('-');
     return `${MESES[parseInt(m,10)]} ${y}`;
+  }
+
+  // ===== Horizontal ranking chart: total hours per aircraft for the most recent year =====
+  const years = Array.from(new Set(months.map(m => m.split('-')[0]))).sort();
+  const currentYear = years[years.length - 1];
+  const ranking = dataByAc.map(ac => {
+    let yearTotal = 0;
+    Object.entries(ac.monthly).forEach(([key, hrs]) => {
+      if (key.split('-')[0] === currentYear) yearTotal += hrs;
+    });
+    return { reg: ac.reg, model: ac.model, total: yearTotal };
+  }).filter(a => a.total > 0).sort((a,b) => b.total - a.total);
+
+  const titleEl = document.getElementById('stats-year-title');
+  if (titleEl) titleEl.textContent = `🏆 Horas Voladas por Aeronave — ${currentYear}`;
+
+  const rankingWrap = document.getElementById('stats-ranking-chart-wrap');
+  const rankingCanvas = document.getElementById('stats-chart-ranking');
+  if (rankingCanvas) {
+    if (rankingWrap) rankingWrap.style.height = Math.max(180, ranking.length * 38) + 'px';
+    if (window._statsChartRanking) { window._statsChartRanking.destroy(); }
+    window._statsChartRanking = new Chart(rankingCanvas, {
+      type: 'bar',
+      data: {
+        labels: ranking.map(a => a.reg),
+        datasets: [{
+          label: 'Horas voladas (HV)',
+          data: ranking.map(a => +a.total.toFixed(1)),
+          backgroundColor: ranking.map((_, i) => i === 0 ? '#0059b3' : '#7ea6d4'),
+          borderRadius: 4
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { beginAtZero: true, title: { display: true, text: 'Horas (HV)', color: '#09142a' }, ticks: { font: { family: "'IBM Plex Mono', monospace", size: 10 }, color: '#4d6880' }, grid: { color: 'rgba(9,20,42,0.08)' } },
+          y: { ticks: { font: { family: "'Orbitron', sans-serif", size: 11 }, color: '#09142a' }, grid: { display: false } }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (item) => item.parsed.x.toFixed(1) + ' HV'
+            }
+          }
+        }
+      }
+    });
   }
 
   // ===== Bar chart: hours per month, grouped by aircraft =====

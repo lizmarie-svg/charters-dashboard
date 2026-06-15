@@ -12,10 +12,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
   :root {
-    --bg: #2a3a4f;
-    --panel: #344659;
-    --panel2: #3d5168;
-    --border: #51677e;
+    --bg: #3e5470;
+    --panel: #49627f;
+    --panel2: #54708f;
+    --border: #6b87a4;
     --accent: #4da6ff;
     --accent2: #8cc8ff;
     --accent-deep: #0059b3;
@@ -1959,7 +1959,7 @@ function buildResumen() {
     if (d.ciclos_totales) {
       const pctUsed = parseFloat(d.ciclos_totales) / 2000 * 100;
       if (pctUsed >= 80) {
-        const rem = 2000 - parseFloat(d.ciclos_totales);
+        const rem = (2000 - parseFloat(d.ciclos_totales)).toFixed(1);
         addAlert('⚙️ Vencimientos en Horas', reg, 'Motor', `Quedan ${rem} HV (${Math.round(100-pctUsed)}%)`, 'danger');
       }
     }
@@ -1968,7 +1968,7 @@ function buildResumen() {
     if (d.ciclos_limite) {
       const pctUsed = parseFloat(d.ciclos_limite) / 2000 * 100;
       if (pctUsed >= 80) {
-        const rem = 2000 - parseFloat(d.ciclos_limite);
+        const rem = (2000 - parseFloat(d.ciclos_limite)).toFixed(1);
         addAlert('⚙️ Vencimientos en Horas', reg, 'Hélices', `Quedan ${rem} HV (${Math.round(100-pctUsed)}%)`, 'danger');
       }
     }

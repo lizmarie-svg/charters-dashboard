@@ -1650,7 +1650,7 @@ pilotosPanel.innerHTML = `
   <div class="card">
     <div class="card-title">👨‍✈️ Registro de Vigencias</div>
     <div style="overflow-x:auto">
-    <div style="display:grid;grid-template-columns:160px 130px 60px 130px 60px 130px 60px 130px 60px 30px;gap:6px;padding:8px 0;border-bottom:1px solid var(--dim);min-width:900px">
+    <div style="display:grid;grid-template-columns:160px 130px 60px 130px 60px 130px 60px 130px 60px 1fr 30px;gap:6px;padding:8px 0;border-bottom:1px solid var(--dim);min-width:1100px">
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">NOMBRE DEL PILOTO</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">VEN. LICENCIA</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">DÍAS</span>
@@ -1660,6 +1660,7 @@ pilotosPanel.innerHTML = `
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">DÍAS</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">VERIF. ESCUELA</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">DÍAS</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">VERIFICACIONES ADICIONALES (POR AERONAVE)</span>
       <span></span>
     </div>
     <div id="pilotos-list"></div>
@@ -1674,9 +1675,33 @@ function renderPilotos() {
   const container = document.getElementById('pilotos-list');
   container.innerHTML = '';
   pilotosData.forEach((p, i) => {
-    const days = daysUntil(p.medico);
+    if (!Array.isArray(p.verificaciones)) p.verificaciones = [];
     const row = document.createElement('div');
-    row.style = 'display:grid;grid-template-columns:160px 130px 60px 130px 60px 130px 60px 130px 60px 30px;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);min-width:900px';
+    row.style = 'display:grid;grid-template-columns:160px 130px 60px 130px 60px 130px 60px 130px 60px 1fr 30px;gap:6px;align-items:start;padding:8px 0;border-bottom:1px solid var(--border);min-width:1100px';
+
+    // Verificaciones adicionales (variable por piloto)
+    const verifHtml = `
+      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start">
+        ${p.verificaciones.map((v, vi) => `
+          <div style="display:flex;flex-direction:column;gap:2px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:4px 6px;min-width:120px">
+            <div style="display:flex;align-items:center;gap:4px">
+              <input type="text" class="maint-input" placeholder="Aeronave / tipo" value="${v.nombre||''}" oninput="pilotosData[${i}].verificaciones[${vi}].nombre=this.value;savePilotos()" style="font-size:9px;padding:3px 6px">
+              <button onclick="pilotosData[${i}].verificaciones.splice(${vi},1);renderPilotos();savePilotos()" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:0">✕</button>
+            </div>
+            ${v.fecha==='na' ?
+              `<span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);cursor:pointer;text-decoration:underline;text-align:center" onclick="pilotosData[${i}].verificaciones[${vi}].fecha='';renderPilotos();savePilotos()">N/A</span>` :
+              `<div style="display:flex;align-items:center;gap:4px">
+                <input type="date" class="maint-input" value="${v.fecha||''}" onchange="pilotosData[${i}].verificaciones[${vi}].fecha=this.value;renderPilotos();savePilotos()" style="font-size:9px;padding:3px 4px;flex:1">
+                ${daysBadge(daysUntil(v.fecha))}
+              </div>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);cursor:pointer;text-decoration:underline;text-align:right" onclick="pilotosData[${i}].verificaciones[${vi}].fecha='na';renderPilotos();savePilotos()">N/A</span>`
+            }
+          </div>
+        `).join('')}
+        <button onclick="pilotosData[${i}].verificaciones.push({nombre:'',fecha:''});renderPilotos();savePilotos()" style="background:transparent;border:1px dashed var(--border);border-radius:8px;color:var(--accent);cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:9px;padding:4px 10px;align-self:flex-start">+ Verificación</button>
+      </div>
+    `;
+
     row.innerHTML = `
       <input type="text" class="maint-input" placeholder="Nombre del piloto" value="${p.nombre}" onchange="pilotosData[${i}].nombre=this.value;savePilotos()">
       <input type="date" class="maint-input" value="${p.licencia}" onchange="pilotosData[${i}].licencia=this.value;renderPilotos();savePilotos()">
@@ -1691,13 +1716,14 @@ function renderPilotos() {
         `<span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);cursor:pointer;text-decoration:underline" onclick="pilotosData[${i}].escuela='';renderPilotos();savePilotos()">N/A</span><span></span>` : 
         `<div style="display:flex;flex-direction:column;gap:2px"><input type="date" class="maint-input" value="${p.escuela||''}" onchange="pilotosData[${i}].escuela=this.value;renderPilotos();savePilotos()" style="font-size:10px"><span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);cursor:pointer;text-align:right" onclick="pilotosData[${i}].escuela='na';renderPilotos();savePilotos()">N/A</span></div><span>${daysBadge(daysUntil(p.escuela))}</span>`
       }
+      ${verifHtml}
       <button onclick="pilotosData.splice(${i},1);renderPilotos();savePilotos()" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:14px;padding:0">✕</button>
     `;
     container.appendChild(row);
   });
 }
 function addPilotoRow() {
-  pilotosData.push({ nombre: '', licencia: '', medico: '', charter: '', escuela: '' });
+  pilotosData.push({ nombre: '', licencia: '', medico: '', charter: '', escuela: '', verificaciones: [] });
   renderPilotos();
 }
 // localStorage savePilotos removed - using Firebase only
@@ -2106,6 +2132,26 @@ function buildResumen() {
         addAlert('👨‍✈️ Vigencia Pilotos', p.nombre, 'Cert. Médico', days < 0 ? 'VENCIDO' : `Vence en ${days} días`, days < 0 ? 'danger' : 'warn');
       }
     }
+    if (p.charter && p.charter !== 'na') {
+      const days = daysUntil(p.charter);
+      if (days !== null && days <= DAYS_WARN) {
+        addAlert('👨‍✈️ Vigencia Pilotos', p.nombre, 'Verif. Charter', days < 0 ? 'VENCIDA' : `Vence en ${days} días`, days < 0 ? 'danger' : 'warn');
+      }
+    }
+    if (p.escuela && p.escuela !== 'na') {
+      const days = daysUntil(p.escuela);
+      if (days !== null && days <= DAYS_WARN) {
+        addAlert('👨‍✈️ Vigencia Pilotos', p.nombre, 'Verif. Escuela', days < 0 ? 'VENCIDA' : `Vence en ${days} días`, days < 0 ? 'danger' : 'warn');
+      }
+    }
+    (p.verificaciones || []).forEach(v => {
+      if (!v.fecha || v.fecha === 'na') return;
+      const days = daysUntil(v.fecha);
+      if (days !== null && days <= DAYS_WARN) {
+        const label = v.nombre ? `Verif. ${v.nombre}` : 'Verificación adicional';
+        addAlert('👨‍✈️ Vigencia Pilotos', p.nombre, label, days < 0 ? 'VENCIDA' : `Vence en ${days} días`, days < 0 ? 'danger' : 'warn');
+      }
+    });
   });
 
   // Render - grouped by aircraft registration
@@ -2293,6 +2339,19 @@ function resolverDoc(reg, item, cat, newDate) {
       if (p.nombre === reg) {
         if (item === 'Licencia') p.licencia = newDate;
         if (item === 'Cert. Médico') p.medico = newDate;
+        if (item === 'Verif. Charter') p.charter = newDate;
+        if (item === 'Verif. Escuela') p.escuela = newDate;
+        if (item.startsWith('Verif. ') && item !== 'Verif. Charter' && item !== 'Verif. Escuela') {
+          const nombreVerif = item.slice('Verif. '.length);
+          (p.verificaciones || []).forEach(v => {
+            if (v.nombre === nombreVerif) v.fecha = newDate;
+          });
+        }
+        if (item === 'Verificación adicional') {
+          (p.verificaciones || []).forEach(v => {
+            if (!v.nombre) v.fecha = newDate;
+          });
+        }
       }
     });
     savePilotos();

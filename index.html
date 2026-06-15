@@ -1748,6 +1748,10 @@ statsPanel.innerHTML = `
   <div class="card" style="margin-bottom:18px;padding:18px">
     <div style="height:340px"><canvas id="stats-chart"></canvas></div>
   </div>
+  <div class="card" style="margin-bottom:18px;padding:18px">
+    <div class="card-title" style="margin-bottom:10px">📈 Total de Horas Voladas — Flota Completa</div>
+    <div style="height:260px"><canvas id="stats-chart-total"></canvas></div>
+  </div>
   <div id="estadisticas-content"><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);padding:20px 0">Cargando...</div></div>
 `;
 contentEl.insertBefore(statsPanel, resumenPanel.nextSibling);
@@ -1828,6 +1832,44 @@ function buildEstadisticas() {
               }
             }
           }
+        }
+      }
+    });
+  }
+
+  // ===== Line chart: total fleet hours per month =====
+  const totalsByMonth = months.map(m => {
+    let t = 0;
+    dataByAc.forEach(ac => { t += (ac.monthly[m] || 0); });
+    return +t.toFixed(1);
+  });
+  const totalCanvas = document.getElementById('stats-chart-total');
+  if (totalCanvas) {
+    if (window._statsChartTotal) { window._statsChartTotal.destroy(); }
+    window._statsChartTotal = new Chart(totalCanvas, {
+      type: 'line',
+      data: {
+        labels: months.map(monthLabel),
+        datasets: [{
+          label: 'Total Flota (HV)',
+          data: totalsByMonth,
+          borderColor: '#0059b3',
+          backgroundColor: 'rgba(0,89,179,0.12)',
+          fill: true,
+          tension: 0.25,
+          pointBackgroundColor: '#0059b3',
+          pointRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { ticks: { font: { family: "'IBM Plex Mono', monospace", size: 10 } }, grid: { display: false } },
+          y: { beginAtZero: true, title: { display: true, text: 'Horas (HV)' }, ticks: { font: { family: "'IBM Plex Mono', monospace", size: 10 } } }
+        },
+        plugins: {
+          legend: { display: false }
         }
       }
     });

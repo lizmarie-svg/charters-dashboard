@@ -722,7 +722,7 @@ function buildPanel(ac, data, idx) {
             <span class="field-label">Motor</span>
             <div style="display:flex;align-items:center;gap:6px">
               <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">Total manual:</span>
-              <input type="number" class="field-input" id="motor-manual-${idx}" value="${data.ciclos_totales||''}" placeholder="0.0" step="0.1" style="width:75px;font-size:10px" oninput="establecerTotalVenc('motor',${idx},this.value)">
+              <input type="number" class="field-input" id="motor-manual-${idx}" value="${data.ciclos_totales!==undefined && data.ciclos_totales!=='' ? parseFloat(data.ciclos_totales).toFixed(1) : ''}" placeholder="0.0" step="0.1" style="width:75px;font-size:10px" oninput="establecerTotalVenc('motor',${idx},this.value)">
               <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">HV</span>
             </div>
           </div>
@@ -744,7 +744,7 @@ function buildPanel(ac, data, idx) {
             <span class="field-label">Hélices</span>
             <div style="display:flex;align-items:center;gap:6px">
               <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">Total manual:</span>
-              <input type="number" class="field-input" id="helices-manual-${idx}" value="${data.ciclos_limite||''}" placeholder="0.0" step="0.1" style="width:75px;font-size:10px" oninput="establecerTotalVenc('helices',${idx},this.value)">
+              <input type="number" class="field-input" id="helices-manual-${idx}" value="${data.ciclos_limite!==undefined && data.ciclos_limite!=='' ? parseFloat(data.ciclos_limite).toFixed(1) : ''}" placeholder="0.0" step="0.1" style="width:75px;font-size:10px" oninput="establecerTotalVenc('helices',${idx},this.value)">
               <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">HV</span>
             </div>
           </div>
@@ -770,7 +770,7 @@ function buildPanel(ac, data, idx) {
         <div id="ultimo-venc-${idx}" style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px;display:${data.ultimo_venc_hv?'flex':'none'};justify-content:space-between;align-items:center">
           <div>
             <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">ÚLTIMO REGISTRO: </span>
-            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);font-weight:700">${data.ultimo_venc_hv||''} HV</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);font-weight:700">${data.ultimo_venc_hv ? parseFloat(data.ultimo_venc_hv).toFixed(1) : ''} HV</span>
             <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);margin-left:8px">${data.ultimo_venc_fecha||''}</span>
           </div>
           <button onclick="revertirVenc(${idx})" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:16px;padding:0 4px" title="Revertir último ingreso">✕</button>
@@ -2313,7 +2313,7 @@ function refreshPanel(idx) {
   if (ulDiv && d.ultimo_venc_hv) {
     ulDiv.style.display = 'flex';
     const spans = ulDiv.querySelectorAll('span');
-    if (spans[1]) spans[1].textContent = d.ultimo_venc_hv + ' HV';
+    if (spans[1]) spans[1].textContent = parseFloat(d.ultimo_venc_hv).toFixed(1) + ' HV';
     if (spans[2]) spans[2].textContent = d.ultimo_venc_fecha || '';
   }
   sv('horas_desde-', d.horas_desde_revision);

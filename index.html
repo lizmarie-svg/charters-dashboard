@@ -48,6 +48,7 @@
     font-family: 'IBM Plex Sans', sans-serif;
     color: var(--text);
     min-height: 100vh;
+    overflow-x: hidden;
     background-image:
       radial-gradient(ellipse 90% 50% at 50% -5%, rgba(0,80,180,0.07) 0%, transparent 65%),
       repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(160,185,210,0.3) 39px, rgba(160,185,210,0.3) 40px),
@@ -232,7 +233,7 @@
   .days-empty { background: var(--dim); color: var(--muted); }
 
   /* Doc rows */
-  .doc-row { display: grid; grid-template-columns: 1fr 160px 110px; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); } .doc-row > *:last-child { text-align: right; min-width: 110px; }
+  .doc-row { display: grid; grid-template-columns: 1fr 160px 110px; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
   .doc-row:last-child { border-bottom: none; }
   .doc-name-input {
     background: transparent; border: none; border-bottom: 1px solid var(--dim);
@@ -345,7 +346,7 @@
       position: fixed !important;
       top: 0; left: 0;
       width: 260px !important;
-      min-width: 260px !important;
+      min-width: 0 !important;
       height: 100vh !important;
       max-height: 100vh !important;
       z-index: 1000;
@@ -391,26 +392,40 @@
       line-height: 1;
     }
 
-    .content { padding: 12px; }
+    /* Contenido principal sin scroll horizontal */
+    .content { padding: 10px; width: 100%; overflow-x: hidden; }
+    .card { padding: 12px; }
 
     .aircraft-header { flex-direction: column; gap: 10px; }
-    .aircraft-reg { font-size: 22px; }
+    .aircraft-reg { font-size: 20px; }
 
-    .section-grid { grid-template-columns: 1fr; }
-    .section-grid-2 { grid-template-columns: 1fr; }
+    /* Grids a una sola columna */
+    .section-grid { grid-template-columns: 1fr !important; }
+    .section-grid-2 { grid-template-columns: 1fr !important; }
 
-    .maint-row { grid-template-columns: 1fr 1fr auto; }
-    .doc-row { grid-template-columns: 1fr auto auto; }
-    .emerg-row { grid-template-columns: 1fr auto; }
+    /* Filas de mantenimiento y documentos más compactas */
+    .maint-row { grid-template-columns: 1fr auto; gap: 6px; }
+    .doc-row { grid-template-columns: 1fr auto; gap: 6px; }
+    .doc-row > *:last-child { min-width: 0; }
+    .emerg-row { grid-template-columns: 1fr auto; gap: 6px; }
 
-    .header { padding: 8px 12px; }
+    /* Badges de estado en móvil: más compactos */
+    .doc-status-badge, .emerg-badge { min-width: 0 !important; font-size: 8px !important; padding: 2px 6px !important; }
+
+    /* Header compacto */
+    .header { padding: 0 12px; }
     .logo-text { font-size: 10px; }
-    .clock { font-size: 13px; }
+    .logo-sub { display: none; }
+    .clock { font-size: 14px; letter-spacing: 1px; }
+    .date-line { font-size: 8px; }
+    header { padding: 0 12px; gap: 8px; }
   }
 
   @media (max-width: 480px) {
     .summary-item { flex: 1 1 100%; }
     .aircraft-reg { font-size: 18px; }
+    .section-grid { grid-template-columns: 1fr !important; }
+    .section-grid-2 { grid-template-columns: 1fr !important; }
   }
 </style>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -467,28 +482,32 @@
 <script>
 
 // ===== DRAWER HAMBURGUESA (móvil) =====
-(function() {
+function initDrawer() {
+  var btn = document.getElementById('hamburgerBtn');
+  var overlay = document.getElementById('drawerOverlay');
+  var closeBtn = document.getElementById('drawerCloseBtn');
+  var sidebar = document.getElementById('sidebar');
+  if (!btn || !overlay || !closeBtn || !sidebar) return;
+
   function openDrawer() {
-    document.getElementById('sidebar').classList.add('open');
-    document.getElementById('drawerOverlay').classList.add('active');
+    sidebar.classList.add('open');
+    overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
   }
   function closeDrawer() {
-    document.getElementById('sidebar').classList.remove('open');
-    document.getElementById('drawerOverlay').classList.remove('active');
+    sidebar.classList.remove('open');
+    overlay.classList.remove('active');
     document.body.style.overflow = '';
   }
-  document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('hamburgerBtn').addEventListener('click', openDrawer);
-    document.getElementById('drawerCloseBtn').addEventListener('click', closeDrawer);
-    document.getElementById('drawerOverlay').addEventListener('click', closeDrawer);
-    // Cerrar drawer al seleccionar un tab
-    document.getElementById('sidebar').addEventListener('click', function(e) {
-      var tab = e.target.closest('.aircraft-tab');
-      if (tab) closeDrawer();
-    });
+
+  btn.addEventListener('click', openDrawer);
+  closeBtn.addEventListener('click', closeDrawer);
+  overlay.addEventListener('click', closeDrawer);
+  // Cerrar drawer al seleccionar un tab
+  sidebar.addEventListener('click', function(e) {
+    if (e.target.closest('.aircraft-tab')) closeDrawer();
   });
-})();
+}
 
 // Firebase configuration
 let db = null;
@@ -1733,13 +1752,11 @@ pilotosPanel.innerHTML = `
   <div class="card">
     <div class="card-title">👨‍✈️ Registro de Vigencias</div>
     <div style="overflow-x:auto">
-    <div style="display:grid;grid-template-columns:160px 130px 60px 130px 60px 130px 60px 130px 60px 1fr 30px;gap:6px;padding:8px 0;border-bottom:1px solid var(--dim);min-width:1100px">
+    <div style="display:grid;grid-template-columns:160px 130px 60px 130px 60px 130px 60px 1fr 30px;gap:6px;padding:8px 0;border-bottom:1px solid var(--dim);min-width:900px">
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">NOMBRE DEL PILOTO</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">VEN. LICENCIA</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">DÍAS</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">CERT. MÉDICO</span>
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">DÍAS</span>
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">VERIF. CHARTER</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">DÍAS</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">VERIF. ESCUELA</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">DÍAS</span>
@@ -1760,7 +1777,7 @@ function renderPilotos() {
   pilotosData.forEach((p, i) => {
     if (!Array.isArray(p.verificaciones)) p.verificaciones = [];
     const row = document.createElement('div');
-    row.style = 'display:grid;grid-template-columns:160px 130px 60px 130px 60px 130px 60px 130px 60px 1fr 30px;gap:6px;align-items:start;padding:8px 0;border-bottom:1px solid var(--border);min-width:1100px';
+    row.style = 'display:grid;grid-template-columns:160px 130px 60px 130px 60px 130px 60px 1fr 30px;gap:6px;align-items:start;padding:8px 0;border-bottom:1px solid var(--border);min-width:900px';
 
     // Verificaciones adicionales (variable por piloto)
     const verifHtml = `
@@ -1791,10 +1808,6 @@ function renderPilotos() {
       <span>${daysBadge(daysUntil(p.licencia))}</span>
       <input type="date" class="maint-input" value="${p.medico}" onchange="pilotosData[${i}].medico=this.value;renderPilotos();savePilotos()">
       <span>${daysBadge(daysUntil(p.medico))}</span>
-      ${p.charter==='na' ? 
-        `<span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);cursor:pointer;text-decoration:underline" onclick="pilotosData[${i}].charter='';renderPilotos();savePilotos()">N/A</span><span></span>` : 
-        `<div style="display:flex;flex-direction:column;gap:2px"><input type="date" class="maint-input" value="${p.charter||''}" onchange="pilotosData[${i}].charter=this.value;renderPilotos();savePilotos()" style="font-size:10px"><span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);cursor:pointer;text-align:right" onclick="pilotosData[${i}].charter='na';renderPilotos();savePilotos()">N/A</span></div><span>${daysBadge(daysUntil(p.charter))}</span>`
-      }
       ${p.escuela==='na' ? 
         `<span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);cursor:pointer;text-decoration:underline" onclick="pilotosData[${i}].escuela='';renderPilotos();savePilotos()">N/A</span><span></span>` : 
         `<div style="display:flex;flex-direction:column;gap:2px"><input type="date" class="maint-input" value="${p.escuela||''}" onchange="pilotosData[${i}].escuela=this.value;renderPilotos();savePilotos()" style="font-size:10px"><span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);cursor:pointer;text-align:right" onclick="pilotosData[${i}].escuela='na';renderPilotos();savePilotos()">N/A</span></div><span>${daysBadge(daysUntil(p.escuela))}</span>`
@@ -2215,12 +2228,6 @@ function buildResumen() {
         addAlert('👨‍✈️ Vigencia Pilotos', p.nombre, 'Cert. Médico', days < 0 ? 'VENCIDO' : `Vence en ${days} días`, days < 0 ? 'danger' : 'warn');
       }
     }
-    if (p.charter && p.charter !== 'na') {
-      const days = daysUntil(p.charter);
-      if (days !== null && days <= DAYS_WARN) {
-        addAlert('👨‍✈️ Vigencia Pilotos', p.nombre, 'Verif. Charter', days < 0 ? 'VENCIDA' : `Vence en ${days} días`, days < 0 ? 'danger' : 'warn');
-      }
-    }
     if (p.escuela && p.escuela !== 'na') {
       const days = daysUntil(p.escuela);
       if (days !== null && days <= DAYS_WARN) {
@@ -2422,9 +2429,8 @@ function resolverDoc(reg, item, cat, newDate) {
       if (p.nombre === reg) {
         if (item === 'Licencia') p.licencia = newDate;
         if (item === 'Cert. Médico') p.medico = newDate;
-        if (item === 'Verif. Charter') p.charter = newDate;
         if (item === 'Verif. Escuela') p.escuela = newDate;
-        if (item.startsWith('Verif. ') && item !== 'Verif. Charter' && item !== 'Verif. Escuela') {
+        if (item.startsWith('Verif. ') && item !== 'Verif. Escuela') {
           const nombreVerif = item.slice('Verif. '.length);
           (p.verificaciones || []).forEach(v => {
             if (v.nombre === nombreVerif) v.fecha = newDate;
@@ -2650,6 +2656,9 @@ if (db) {
     }
   });
 }
+
+// Inicializar drawer hamburguesa
+initDrawer();
 
 // Register service worker for PWA (installable + offline app shell)
 if ('serviceWorker' in navigator) {

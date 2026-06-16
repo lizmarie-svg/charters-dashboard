@@ -1768,7 +1768,7 @@ function renderPilotos() {
         ${p.verificaciones.map((v, vi) => `
           <div style="display:flex;flex-direction:column;gap:2px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:4px 6px;min-width:120px">
             <div style="display:flex;align-items:center;gap:4px">
-              <input type="text" class="maint-input" placeholder="Aeronave / tipo" value="${v.nombre||''}" oninput="pilotosData[${i}].verificaciones[${vi}].nombre=this.value;savePilotos()" style="font-size:9px;padding:3px 6px">
+              <input type="text" class="maint-input" placeholder="Aeronave / tipo" value="${v.nombre||''}" onchange="pilotosData[${i}].verificaciones[${vi}].nombre=this.value;savePilotos()" style="font-size:9px;padding:3px 6px">
               <button onclick="pilotosData[${i}].verificaciones.splice(${vi},1);renderPilotos();savePilotos()" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:0">✕</button>
             </div>
             ${v.fecha==='na' ?
@@ -2640,6 +2640,10 @@ if (db) {
   db.ref('pilotos').on('value', (snapshot) => {
     const saved = snapshot.val();
     if (saved && Array.isArray(saved)) {
+      // No re-renderizar si el usuario está escribiendo en un input de pilotos
+      const activeEl = document.activeElement;
+      const inPilotosTable = activeEl && activeEl.closest && activeEl.closest('#pilotos-list');
+      if (inPilotosTable) return;
       pilotosData.length = 0;
       saved.forEach(p => pilotosData.push(p));
       renderPilotos();

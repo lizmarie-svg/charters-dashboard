@@ -447,6 +447,9 @@
       touch-action: manipulation;
     }
 
+    /* Pilotos: ocultar header de tabla en móvil (usamos tarjetas) */
+    .pilotos-table-header { display: none !important; }
+
     /* Pendientes: 1 columna en móvil, filas verticales */
     .pendientes-grid { grid-template-columns: 1fr !important; }
     .alert-row {
@@ -1829,7 +1832,7 @@ pilotosPanel.innerHTML = `
   <div class="card">
     <div class="card-title">👨‍✈️ Registro de Vigencias</div>
     <div style="overflow-x:auto">
-    <div style="display:grid;grid-template-columns:160px 130px 60px 130px 60px 130px 60px 1fr 30px;gap:6px;padding:8px 0;border-bottom:1px solid var(--dim);min-width:900px">
+    <div class="pilotos-table-header" style="display:grid;grid-template-columns:160px 130px 60px 130px 60px 130px 60px 1fr 30px;gap:6px;padding:8px 0;border-bottom:1px solid var(--dim);min-width:900px">
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">NOMBRE DEL PILOTO</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">VEN. LICENCIA</span>
       <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)">DÍAS</span>
@@ -1851,12 +1854,12 @@ const pilotosData = [];
 function renderPilotos() {
   const container = document.getElementById('pilotos-list');
   container.innerHTML = '';
+  const isMobile = window.innerWidth <= 768;
+
   pilotosData.forEach((p, i) => {
     if (!Array.isArray(p.verificaciones)) p.verificaciones = [];
-    const row = document.createElement('div');
-    row.style = 'display:grid;grid-template-columns:160px 130px 60px 130px 60px 130px 60px 1fr 30px;gap:6px;align-items:start;padding:8px 0;border-bottom:1px solid var(--border);min-width:900px';
 
-    // Verificaciones adicionales (variable por piloto)
+    // Verificaciones adicionales — mismo HTML para ambos layouts
     const verifHtml = `
       <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start">
         ${p.verificaciones.map((v, vi) => `
@@ -1879,19 +1882,64 @@ function renderPilotos() {
       </div>
     `;
 
-    row.innerHTML = `
-      <input type="text" class="maint-input" placeholder="Nombre del piloto" value="${p.nombre}" onchange="pilotosData[${i}].nombre=this.value;savePilotos()">
-      <input type="date" class="maint-input" value="${p.licencia}" onchange="pilotosData[${i}].licencia=this.value;renderPilotos();savePilotos()">
-      <span>${daysBadge(daysUntil(p.licencia))}</span>
-      <input type="date" class="maint-input" value="${p.medico}" onchange="pilotosData[${i}].medico=this.value;renderPilotos();savePilotos()">
-      <span>${daysBadge(daysUntil(p.medico))}</span>
-      ${p.escuela==='na' ? 
-        `<span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);cursor:pointer;text-decoration:underline" onclick="pilotosData[${i}].escuela='';renderPilotos();savePilotos()">N/A</span><span></span>` : 
-        `<div style="display:flex;flex-direction:column;gap:2px"><input type="date" class="maint-input" value="${p.escuela||''}" onchange="pilotosData[${i}].escuela=this.value;renderPilotos();savePilotos()" style="font-size:10px"><span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);cursor:pointer;text-align:right" onclick="pilotosData[${i}].escuela='na';renderPilotos();savePilotos()">N/A</span></div><span>${daysBadge(daysUntil(p.escuela))}</span>`
-      }
-      ${verifHtml}
-      <button onclick="pilotosData.splice(${i},1);renderPilotos();savePilotos()" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:14px;padding:0">✕</button>
-    `;
+    const escuelaHtml = p.escuela==='na'
+      ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);cursor:pointer;text-decoration:underline" onclick="pilotosData[${i}].escuela='';renderPilotos();savePilotos()">N/A</span>`
+      : `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <input type="date" class="maint-input" value="${p.escuela||''}" onchange="pilotosData[${i}].escuela=this.value;renderPilotos();savePilotos()" style="font-size:10px;flex:1;min-width:120px">
+          ${daysBadge(daysUntil(p.escuela))}
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);cursor:pointer;text-decoration:underline" onclick="pilotosData[${i}].escuela='na';renderPilotos();savePilotos()">N/A</span>
+        </div>`;
+
+    const row = document.createElement('div');
+
+    if (isMobile) {
+      // ===== LAYOUT MÓVIL: tarjeta vertical por piloto =====
+      row.style = 'background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px';
+      row.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <input type="text" class="maint-input" placeholder="Nombre del piloto" value="${p.nombre}" onchange="pilotosData[${i}].nombre=this.value;savePilotos()" style="font-size:13px;font-weight:700;flex:1;margin-right:8px">
+          <button onclick="pilotosData.splice(${i},1);renderPilotos();savePilotos()" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:16px;padding:4px;flex-shrink:0">✕</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:1px">Ven. Licencia</div>
+            <input type="date" class="maint-input" value="${p.licencia}" onchange="pilotosData[${i}].licencia=this.value;renderPilotos();savePilotos()" style="width:100%">
+            <div style="margin-top:3px">${daysBadge(daysUntil(p.licencia))}</div>
+          </div>
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:1px">Cert. Médico</div>
+            <input type="date" class="maint-input" value="${p.medico}" onchange="pilotosData[${i}].medico=this.value;renderPilotos();savePilotos()" style="width:100%">
+            <div style="margin-top:3px">${daysBadge(daysUntil(p.medico))}</div>
+          </div>
+        </div>
+        <div style="margin-bottom:8px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:1px">Verif. Escuela</div>
+          ${escuelaHtml}
+        </div>
+        ${p.verificaciones.length > 0 ? `
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Verificaciones Adicionales</div>
+          ${verifHtml}
+        </div>` : `<div>${verifHtml}</div>`}
+      `;
+    } else {
+      // ===== LAYOUT DESKTOP: tabla horizontal =====
+      row.style = 'display:grid;grid-template-columns:160px 130px 60px 130px 60px 130px 60px 1fr 30px;gap:6px;align-items:start;padding:8px 0;border-bottom:1px solid var(--border);min-width:900px';
+      row.innerHTML = `
+        <input type="text" class="maint-input" placeholder="Nombre del piloto" value="${p.nombre}" onchange="pilotosData[${i}].nombre=this.value;savePilotos()">
+        <input type="date" class="maint-input" value="${p.licencia}" onchange="pilotosData[${i}].licencia=this.value;renderPilotos();savePilotos()">
+        <span>${daysBadge(daysUntil(p.licencia))}</span>
+        <input type="date" class="maint-input" value="${p.medico}" onchange="pilotosData[${i}].medico=this.value;renderPilotos();savePilotos()">
+        <span>${daysBadge(daysUntil(p.medico))}</span>
+        ${p.escuela==='na' ? 
+          `<span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);cursor:pointer;text-decoration:underline" onclick="pilotosData[${i}].escuela='';renderPilotos();savePilotos()">N/A</span><span></span>` : 
+          `<div style="display:flex;flex-direction:column;gap:2px"><input type="date" class="maint-input" value="${p.escuela||''}" onchange="pilotosData[${i}].escuela=this.value;renderPilotos();savePilotos()" style="font-size:10px"><span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);cursor:pointer;text-align:right" onclick="pilotosData[${i}].escuela='na';renderPilotos();savePilotos()">N/A</span></div><span>${daysBadge(daysUntil(p.escuela))}</span>`
+        }
+        ${verifHtml}
+        <button onclick="pilotosData.splice(${i},1);renderPilotos();savePilotos()" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:14px;padding:0">✕</button>
+      `;
+    }
+
     container.appendChild(row);
   });
 }

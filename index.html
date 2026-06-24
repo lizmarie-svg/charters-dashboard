@@ -2749,6 +2749,54 @@ function fmt12h(timeStr) {
   return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
 }
 
+function getAircraftWarnings(reg) {
+  const idx = fleet.findIndex(a => a.reg === reg);
+  if (idx === -1) return [];
+  const d = state[idx];
+  const warnings = [];
+
+  // En mantenimiento
+  if (d.status === 'mantenimiento' || d.status === 'aog') {
+    warnings.push({ level: 'danger', msg: d.estatus_label || (d.status === 'aog' ? '🔴 GROUNDED' : '🔧 EN MANTENIMIENTO') });
+  }
+
+  // Inspección 50 hrs
+  const acum50 = parseFloat(d.horas_acum_50 || 0);
+  if (acum50 >= 50) warnings.push({ level: 'danger', msg: `🔧 INSP. 50 HRS VENCIDA (${acum50.toFixed(1)} HV)` });
+  else if (acum50 >= 40) warnings.push({ level: 'warn', msg: `⚠️ Insp. 50 hrs próxima (${acum50.toFixed(1)}/50 HV)` });
+
+  // Inspección 100 hrs
+  const acum100 = parseFloat(d.horas_acum_100 || 0);
+  if (acum100 >= 100) warnings.push({ level: 'danger', msg: `🔧 INSP. 100 HRS VENCIDA (${acum100.toFixed(1)} HV)` });
+  else if (acum100 >= 80) warnings.push({ level: 'warn', msg: `⚠️ Insp. 100 hrs próxima (${acum100.toFixed(1)}/100 HV)` });
+
+  // Motor
+  const motor = parseFloat(d.ciclos_totales || 0);
+  const limMotor = parseFloat(d.limite_motor || 2000);
+  const pctMotor = motor / limMotor * 100;
+  if (pctMotor >= 100) warnings.push({ level: 'danger', msg: `🔧 MOTOR VENCIDO (${motor.toFixed(0)}/${limMotor} HV)` });
+  else if (pctMotor >= 80) warnings.push({ level: 'warn', msg: `⚠️ Motor próximo (${motor.toFixed(0)}/${limMotor} HV)` });
+
+  // Hélices / Motor 2
+  const helice = parseFloat(d.ciclos_limite || 0);
+  const limHelice = parseFloat(d.limite_helice || 2000);
+  const pctHelice = helice / limHelice * 100;
+  if (pctHelice >= 100) warnings.push({ level: 'danger', msg: `🔧 HÉLICES VENCIDAS (${helice.toFixed(0)}/${limHelice} HV)` });
+  else if (pctHelice >= 80) warnings.push({ level: 'warn', msg: `⚠️ Hélices próximas (${helice.toFixed(0)}/${limHelice} HV)` });
+
+  // Documentos vencidos o por vencer
+  if (d.documentos) {
+    d.documentos.forEach(doc => {
+      if (!doc.nombre || !doc.vence) return;
+      const days = daysUntil(doc.vence);
+      if (days !== null && days < 0) warnings.push({ level: 'danger', msg: `📄 ${doc.nombre} VENCIDO` });
+      else if (days !== null && days <= 30) warnings.push({ level: 'warn', msg: `📄 ${doc.nombre} vence en ${days}d` });
+    });
+  }
+
+  return warnings;
+}
+
 function timesToMinutes(t) {
   if (!t) return null;
   const [h, m] = t.split(':').map(Number);
@@ -2819,6 +2867,17 @@ function renderDayFlights(dateStr) {
       const timeStr = horaInicio ? (horaFin ? `${fmt12h(horaInicio)} → ${fmt12h(horaFin)}` : fmt12h(horaInicio)) : '-- : --';
       const acVal = f.aeronave || '';
 
+      const warnings = acVal ? getAircraftWarnings(acVal) : [];
+      const warningsHtml = warnings.length ? `
+        <div style="margin-top:4px;display:flex;flex-direction:column;gap:3px">
+          ${warnings.map(w => `
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;padding:2px 8px;border-radius:4px;
+              background:${w.level==='danger'?'rgba(184,15,30,0.1)':'rgba(196,112,0,0.1)'};
+              color:${w.level==='danger'?'var(--danger)':'var(--warn)'}">
+              ${w.msg}
+            </div>`).join('')}
+        </div>` : '';
+
       html += `<div class="flight-card" style="flex-direction:column;align-items:stretch;gap:6px;border-left:3px solid ${color};margin-bottom:6px">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
           <div class="flight-time" style="font-size:13px">${timeStr}</div>
@@ -2833,6 +2892,7 @@ function renderDayFlights(dateStr) {
             ${f.piloto ? `👨‍✈️ ${f.piloto}` : ''}${f.piloto && f.estudiante ? ' · ' : ''}${f.estudiante ? `🎓 ${f.estudiante}` : ''}
           </span>
         </div>
+        ${warningsHtml}
       </div>`;
     });
 
@@ -2866,6 +2926,16 @@ function addFlight() {
     if (hasConflict(fecha, horaInicio, horaFin, aeronave, -1)) {
       alert(`⚠️ ${aeronave} ya tiene un vuelo en ese horario.\n\nVerifica los vuelos del día antes de asignar.`);
       return;
+    }
+  }
+
+  // Avisar si la aeronave tiene problemas (sin bloquear)
+  if (aeronave) {
+    const warns = getAircraftWarnings(aeronave);
+    const dangers = warns.filter(w => w.level === 'danger');
+    if (dangers.length > 0) {
+      const msgs = dangers.map(w => `• ${w.msg}`).join('\n');
+      if (!confirm(`⚠️ ${aeronave} tiene alertas activas:\n\n${msgs}\n\n¿Deseas agendar el vuelo de todas formas?`)) return;
     }
   }
 

@@ -2410,70 +2410,57 @@ function resolverHoras(reg, item) {
   if (idx === -1) return;
   const d = state[idx];
 
-  // Determinar límite y valor actual según tipo
-  let limiteActual = 50;
-  let valorActual = 0;
-  if (item.includes('50 hrs'))        { limiteActual = 50;   valorActual = parseFloat(d.horas_acum_50 || 0); }
-  else if (item.includes('100 hrs'))  { limiteActual = 100;  valorActual = parseFloat(d.horas_acum_100 || d.horas_limite || 0); }
-  else if (item === 'Motor' || item === 'Motor 1')   { limiteActual = parseFloat(d.limite_motor || 2000);  valorActual = parseFloat(d.ciclos_totales || 0); }
-  else if (item === 'Hélices' || item === 'Motor 2') { limiteActual = parseFloat(d.limite_helice || 2000); valorActual = parseFloat(d.ciclos_limite || 0); }
-  else if (item === 'Hélice 1') { limiteActual = parseFloat(d.helice1_limite || 2000); valorActual = parseFloat(d.helice1_ciclos || 0); }
-  else if (item === 'Hélice 2') { limiteActual = parseFloat(d.helice2_limite || 2000); valorActual = parseFloat(d.helice2_ciclos || 0); }
-
-  // Remanente = horas acumuladas - límite (lo que se voló de más después del límite)
-  // Si el mantenimiento se hizo antes del límite, remanente = 0
-  const remanente = Math.max(0, valorActual - limiteActual).toFixed(1);
-
-  const msg = parseFloat(remanente) > 0
-    ? `${reg} — ${item}\n\nContador actual: ${valorActual.toFixed(1)} HV\nLímite: ${limiteActual} HV\nRemanente a cargar al nuevo ciclo: ${remanente} HV\n\n¿Confirmar?`
-    : `${reg} — ${item}\n\nContador actual: ${valorActual.toFixed(1)} HV\nLímite: ${limiteActual} HV\nEl mantenimiento se realizó antes del límite.\nNuevo ciclo arranca en 0.0 HV.\n\n¿Confirmar?`;
-
-  if (!confirm(msg)) return;
-
   if (item === 'Motor' || item === 'Motor 1') {
-    d.ciclos_totales = remanente;
+    d.ciclos_totales = '0';
     const el = document.getElementById('ciclos_totales-'+idx);
-    if(el) { el.value = remanente; updateVencBar('motor',idx,remanente,limiteActual); updateHorasWarning(el,limiteActual); }
+    if(el) { el.value='0'; updateVencBar('motor',idx,'0',parseFloat(d.limite_motor||2000)); updateHorasWarning(el,parseFloat(d.limite_motor||2000)); }
   }
   else if (item === 'Hélices' || item === 'Motor 2') {
-    d.ciclos_limite = remanente;
+    d.ciclos_limite = '0';
     const el = document.getElementById('ciclos_limite-'+idx);
-    if(el) { el.value = remanente; updateVencBar('helices',idx,remanente,limiteActual); updateHorasWarning(el,limiteActual); }
+    if(el) { el.value='0'; updateVencBar('helices',idx,'0',parseFloat(d.limite_helice||2000)); updateHorasWarning(el,parseFloat(d.limite_helice||2000)); }
   }
   else if (item === 'Hélice 1' || item === 'Hélice 2') {
     const tipo = item === 'Hélice 1' ? 'helice1' : 'helice2';
     const map = VENC_FIELD_MAP[tipo];
-    d[map.dataField] = remanente;
+    d[map.dataField] = '0';
     const el = document.getElementById(map.hiddenId + idx);
-    if (el) el.value = remanente;
+    if (el) el.value = '0';
     const am = document.getElementById(map.acumId + idx);
-    if (am) am.textContent = parseFloat(remanente).toFixed(1);
+    if (am) am.textContent = '0.0';
     const manInp = document.getElementById(tipo + '-manual-' + idx);
-    if (manInp) manInp.value = parseFloat(remanente).toFixed(1);
-    updateVencBar(tipo, idx, remanente, limiteActual);
+    if (manInp) manInp.value = '0.0';
+    updateVencBar(tipo, idx, '0', parseFloat(d[map.limiteField]||2000));
   }
   else if (item.includes('50 hrs')) {
-    // Solo resetear el contador de 50 hrs — el de 100 hrs sigue acumulando
+    // Resetear acum_50 a 0 y fijar acum_100 exactamente en 50
     d.horas_acum_50 = '0';
-    d.horas_totales = d.horas_acum_50;
-    const a50 = document.getElementById('acum50-'+idx);
-    const pb50 = document.getElementById('pb-50-'+idx);
-    if(a50) a50.textContent = '0.0 HV';
-    if(pb50) { pb50.style.width = '0%'; pb50.className = 'progress-fill fill-ok'; }
-  }
-  else if (item.includes('100 hrs')) {
-    d.horas_acum_50 = remanente;
-    d.horas_totales = remanente;
-    d.horas_acum_100 = remanente;
-    d.horas_limite = remanente;
+    d.horas_totales = '0';
+    d.horas_acum_100 = '50';
+    d.horas_limite = '50';
     const a50 = document.getElementById('acum50-'+idx);
     const pb50 = document.getElementById('pb-50-'+idx);
     const a100 = document.getElementById('acum100-'+idx);
     const pb100 = document.getElementById('pb-100-'+idx);
-    if(a50) a50.textContent = parseFloat(remanente).toFixed(1) + ' HV';
-    if(pb50) { pb50.style.width = Math.min(100,parseFloat(remanente)/100*100)+'%'; pb50.className='progress-fill '+(parseFloat(remanente)/100*100>=80?'fill-danger':'fill-ok'); }
-    if(a100) a100.textContent = parseFloat(remanente).toFixed(1) + ' HV';
-    if(pb100) { pb100.style.width = Math.min(100,parseFloat(remanente)/100*100)+'%'; pb100.className='progress-fill '+(parseFloat(remanente)/100*100>=80?'fill-danger':'fill-ok'); }
+    if(a50) a50.textContent = '0.0 HV';
+    if(pb50) { pb50.style.width='0%'; pb50.className='progress-fill fill-ok'; }
+    if(a100) a100.textContent = '50.0 HV';
+    if(pb100) { pb100.style.width='50%'; pb100.className='progress-fill fill-ok'; }
+  }
+  else if (item.includes('100 hrs')) {
+    // Resetear todo — nuevo ciclo completo
+    d.horas_acum_50 = '0';
+    d.horas_totales = '0';
+    d.horas_acum_100 = '0';
+    d.horas_limite = '0';
+    const a50 = document.getElementById('acum50-'+idx);
+    const pb50 = document.getElementById('pb-50-'+idx);
+    const a100 = document.getElementById('acum100-'+idx);
+    const pb100 = document.getElementById('pb-100-'+idx);
+    if(a50) a50.textContent = '0.0 HV';
+    if(pb50) { pb50.style.width='0%'; pb50.className='progress-fill fill-ok'; }
+    if(a100) a100.textContent = '0.0 HV';
+    if(pb100) { pb100.style.width='0%'; pb100.className='progress-fill fill-ok'; }
   }
 
   d.estatus_label = '';

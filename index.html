@@ -233,6 +233,8 @@
   .days-empty { background: var(--dim); color: var(--muted); }
 
   /* Doc rows */
+  .doc-status-badge-inner { display:inline-flex;align-items:center;justify-content:flex-end;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700; }
+  .dot { width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0; }
   .doc-row { display: grid; grid-template-columns: 1fr 160px 110px; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
   .doc-row:last-child { border-bottom: none; }
   .doc-name-input {
@@ -394,7 +396,7 @@
 
     /* Contenido principal sin scroll horizontal */
     .content { padding: 10px; width: 100%; overflow-x: hidden; }
-    .card { padding: 12px; }
+    .card { padding: 12px; overflow-x: hidden; }
 
     .aircraft-header { flex-direction: column; gap: 10px; }
     .aircraft-reg { font-size: 20px; }
@@ -403,22 +405,24 @@
     .section-grid { grid-template-columns: 1fr !important; }
     .section-grid-2 { grid-template-columns: 1fr !important; }
 
-    /* Filas de mantenimiento y documentos más compactas */
-    .maint-row { grid-template-columns: 1fr auto; gap: 6px; }
-    .doc-row { grid-template-columns: 1fr auto; gap: 6px; }
-    .doc-row > *:last-child { min-width: 0; }
-    .emerg-row { grid-template-columns: 1fr auto; gap: 6px; }
+    /* Filas de mantenimiento y documentos: 2 columnas en móvil */
+    .maint-row { grid-template-columns: 1fr auto !important; gap: 6px; }
+    .doc-row { grid-template-columns: 1fr auto !important; gap: 6px; }
+    .emerg-row { grid-template-columns: 1fr auto !important; gap: 6px; }
 
-    /* Badges de estado en móvil: más compactos */
-    .doc-status-badge, .emerg-badge { min-width: 0 !important; font-size: 8px !important; padding: 2px 6px !important; }
+    /* Badges sin ancho mínimo fijo */
+    .doc-status-badge { min-width: 0 !important; }
+    .doc-status-badge-inner { font-size: 8px !important; justify-content: flex-start; }
+
+    /* Inputs de fecha: ancho flexible */
+    .doc-date-input, .maint-input { min-width: 0 !important; width: 100% !important; }
 
     /* Header compacto */
-    .header { padding: 0 12px; }
-    .logo-text { font-size: 10px; }
     .logo-sub { display: none; }
     .clock { font-size: 14px; letter-spacing: 1px; }
     .date-line { font-size: 8px; }
     header { padding: 0 12px; gap: 8px; }
+    .logo-text { font-size: 10px; }
   }
 
   @media (max-width: 480px) {
@@ -434,7 +438,7 @@
 <body>
 
 <header>
-  <button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir menú">
+  <button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir menú" onclick="openDrawer()">
     <span></span><span></span><span></span>
   </button>
   <div class="logo">
@@ -468,11 +472,11 @@
   </div>
 </div>
 
-<div class="drawer-overlay" id="drawerOverlay"></div>
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
 
 <div class="main">
   <div class="sidebar" id="sidebar">
-    <button class="drawer-close-btn" id="drawerCloseBtn" aria-label="Cerrar menú">✕</button>
+    <button class="drawer-close-btn" id="drawerCloseBtn" aria-label="Cerrar menú" onclick="closeDrawer()">✕</button>
     <div class="sidebar-title">Aeronaves</div>
     <div id="sidebar-tabs"></div>
   </div>
@@ -482,31 +486,24 @@
 <script>
 
 // ===== DRAWER HAMBURGUESA (móvil) =====
+function openDrawer() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('drawerOverlay').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+function closeDrawer() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('active');
+  document.body.style.overflow = '';
+}
 function initDrawer() {
-  var btn = document.getElementById('hamburgerBtn');
-  var overlay = document.getElementById('drawerOverlay');
-  var closeBtn = document.getElementById('drawerCloseBtn');
-  var sidebar = document.getElementById('sidebar');
-  if (!btn || !overlay || !closeBtn || !sidebar) return;
-
-  function openDrawer() {
-    sidebar.classList.add('open');
-    overlay.classList.add('active');
-    document.body.style.overflow = 'hidden';
-  }
-  function closeDrawer() {
-    sidebar.classList.remove('open');
-    overlay.classList.remove('active');
-    document.body.style.overflow = '';
-  }
-
-  btn.addEventListener('click', openDrawer);
-  closeBtn.addEventListener('click', closeDrawer);
-  overlay.addEventListener('click', closeDrawer);
   // Cerrar drawer al seleccionar un tab
-  sidebar.addEventListener('click', function(e) {
-    if (e.target.closest('.aircraft-tab')) closeDrawer();
-  });
+  var sidebar = document.getElementById('sidebar');
+  if (sidebar) {
+    sidebar.addEventListener('click', function(e) {
+      if (e.target.closest('.aircraft-tab')) closeDrawer();
+    });
+  }
 }
 
 // Firebase configuration
@@ -1245,12 +1242,12 @@ function eliminarBitacora(idx, mi) {
 }
 
 function docStatusBadge(vence) {
-  if (!vence) return '<span style="font-family:IBM Plex Mono,monospace;font-size:9px;color:var(--muted)">—</span>';
+  if (!vence) return '<span class="doc-status-badge-inner" style="color:var(--muted)">—</span>';
   const days = daysUntil(vence);
-  if (days === null) return `<span style="display:inline-flex;align-items:center;justify-content:flex-end;min-width:110px;gap:5px;font-family:IBM Plex Mono,monospace;font-size:9px;font-weight:700;color:var(--muted)">—</span>`;
-  if (days < 0) return `<span style="display:inline-flex;align-items:center;justify-content:flex-end;min-width:110px;gap:5px;font-family:IBM Plex Mono,monospace;font-size:9px;font-weight:700;color:var(--danger)"><span style="width:8px;height:8px;border-radius:50%;background:var(--danger);display:inline-block"></span>VENCIDO</span>`;
-  if (days <= 30) return `<span style="display:inline-flex;align-items:center;justify-content:flex-end;min-width:110px;gap:5px;font-family:IBM Plex Mono,monospace;font-size:9px;font-weight:700;color:var(--warn)"><span style="width:8px;height:8px;border-radius:50%;background:var(--warn);display:inline-block"></span>POR VENCER (${days}d)</span>`;
-  return `<span style="display:inline-flex;align-items:center;justify-content:flex-end;min-width:110px;gap:5px;font-family:IBM Plex Mono,monospace;font-size:9px;font-weight:700;color:var(--ok)"><span style="width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block"></span>VIGENTE</span>`;
+  if (days === null) return `<span class="doc-status-badge-inner" style="color:var(--muted)">—</span>`;
+  if (days < 0) return `<span class="doc-status-badge-inner" style="color:var(--danger)"><span class="dot" style="background:var(--danger)"></span>VENCIDO</span>`;
+  if (days <= 30) return `<span class="doc-status-badge-inner" style="color:var(--warn)"><span class="dot" style="background:var(--warn)"></span>POR VENCER (${days}d)</span>`;
+  return `<span class="doc-status-badge-inner" style="color:var(--ok)"><span class="dot" style="background:var(--ok)"></span>VIGENTE</span>`;
 }
 
 function renderDocList(idx, items) {

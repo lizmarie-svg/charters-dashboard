@@ -240,7 +240,12 @@
   .flight-info { flex:1; min-width:0; }
   .flight-time { font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:700; color:var(--text); }
   .flight-detail { font-family:'IBM Plex Sans',monospace; font-size:10px; color:var(--muted); margin-top:2px; }
-  .add-flight-form { background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:14px; margin-top:12px; }
+  .cal-cell.holiday { background: rgba(196,112,0,0.08); border-color: var(--warn); }
+  .cal-cell.holiday .cal-day-num { color: var(--warn); }
+  .cal-holiday-label { font-family:'IBM Plex Mono',monospace; font-size:6px; color:var(--warn); line-height:1.2; margin-top:2px; word-break:break-word; }
+  @media (max-width:768px) {
+    .cal-holiday-label { font-size:5px; }
+  }
   .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .form-field { display:flex; flex-direction:column; gap:4px; }
   .form-label { font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
@@ -2686,6 +2691,41 @@ function acColor(reg) {
   return AC_COLORS[idx % AC_COLORS.length] || '#0059b3';
 }
 
+// ===== FERIADOS PANAMA =====
+const FERIADOS_PA = {
+  // Fijos todos los años
+  '01-01': 'Año Nuevo',
+  '01-09': 'Día de los Mártires',
+  '05-01': 'Día del Trabajo',
+  '11-03': 'Separación de Panamá de Colombia',
+  '11-04': 'Separación de Panamá de Colombia',
+  '11-05': 'Día de Colón',
+  '11-10': 'Grito de Independencia',
+  '11-28': 'Independencia de España',
+  '12-08': 'Día de las Madres',
+  '12-20': 'Día de Duelo Nacional',
+  '12-25': 'Navidad',
+  // Carnaval y Semana Santa varían por año
+  // 2025
+  '2025-03-04': 'Carnaval',
+  '2025-04-18': 'Viernes Santo',
+  // 2026
+  '2026-02-16': 'Lunes de Carnaval',
+  '2026-02-17': 'Martes de Carnaval',
+  '2026-04-03': 'Viernes Santo',
+  // 2027
+  '2027-02-08': 'Lunes de Carnaval',
+  '2027-02-09': 'Martes de Carnaval',
+  '2027-03-26': 'Viernes Santo',
+};
+
+function getFeriado(dateStr) {
+  // Buscar primero fecha exacta (YYYY-MM-DD), luego patrón fijo (MM-DD)
+  if (FERIADOS_PA[dateStr]) return FERIADOS_PA[dateStr];
+  const mmdd = dateStr.slice(5); // MM-DD
+  return FERIADOS_PA[mmdd] || null;
+}
+
 function changeMonth(dir) {
   calMonth += dir;
   if (calMonth > 11) { calMonth = 0; calYear++; }
@@ -2722,10 +2762,16 @@ function renderCalendar() {
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const cell = document.createElement('div');
-    cell.className = 'cal-cell' + (dateStr === todayStr ? ' today' : '') + (dateStr === calSelectedDate ? ' selected' : '');
+    const feriado = getFeriado(dateStr);
+    const isHoliday = !!feriado;
+    cell.className = 'cal-cell' +
+      (dateStr === todayStr ? ' today' : '') +
+      (dateStr === calSelectedDate ? ' selected' : '') +
+      (isHoliday ? ' holiday' : '');
     const flights = flightsByDate[dateStr] || [];
     const dots = flights.slice(0,6).map(f => `<span class="cal-dot" style="background:${acColor(f.aeronave)}"></span>`).join('');
-    cell.innerHTML = `<div class="cal-day-num">${d}</div><div class="cal-dots">${dots}</div>`;
+    const feriadoLabel = feriado ? `<div class="cal-holiday-label">${feriado}</div>` : '';
+    cell.innerHTML = `<div class="cal-day-num">${d}</div><div class="cal-dots">${dots}</div>${feriadoLabel}`;
     cell.addEventListener('click', () => selectDate(dateStr));
     container.appendChild(cell);
   }
@@ -2878,6 +2924,13 @@ function renderDayFlights(dateStr) {
             </div>`).join('')}
         </div>` : '';
 
+      const pilotOptions = pilotosData.filter(p=>p.nombre).map(p => {
+        const status = getPilotoStatus(p);
+        const prefix = status === 'vencido' ? '🔴 ' : status === 'proximo' ? '🟡 ' : '';
+        const disabled = status === 'vencido' ? ' disabled' : '';
+        return `<option value="${p.nombre}" ${p.nombre===f.piloto?'selected':''}${disabled}>${prefix}${p.nombre}</option>`;
+      }).join('');
+
       html += `<div class="flight-card" style="flex-direction:column;align-items:stretch;gap:6px;border-left:3px solid ${color};margin-bottom:6px">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
           <div class="flight-time" style="font-size:13px">${timeStr}</div>
@@ -2888,9 +2941,11 @@ function renderDayFlights(dateStr) {
             <option value="" ${!acVal?'selected':''}>Sin asignar</option>
             ${fleet.map(a => `<option value="${a.reg}" ${a.reg===acVal?'selected':''}>${a.reg}</option>`).join('')}
           </select>
-          <span style="font-family:'IBM Plex Sans',sans-serif;font-size:10px;color:var(--muted)">
-            ${f.piloto ? `👨‍✈️ ${f.piloto}` : ''}${f.piloto && f.estudiante ? ' · ' : ''}${f.estudiante ? `🎓 ${f.estudiante}` : ''}
-          </span>
+          <select onchange="updateFlightPilot(${globalIdx},this.value)" style="font-family:'IBM Plex Sans',sans-serif;font-size:10px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:var(--panel2);color:var(--text);cursor:pointer;-webkit-tap-highlight-color:transparent">
+            <option value="">👨‍✈️ Sin piloto</option>
+            ${pilotOptions}
+          </select>
+          ${f.estudiante ? `<span style="font-family:'IBM Plex Sans',sans-serif;font-size:10px;color:var(--muted)">🎓 ${f.estudiante}</span>` : ''}
         </div>
         ${warningsHtml}
       </div>`;
@@ -2902,12 +2957,50 @@ function renderDayFlights(dateStr) {
   container.innerHTML = html;
 }
 
+function getPilotoStatus(p) {
+  // Retorna: 'vencido', 'proximo', 'ok'
+  // Revisa licencia, medico, escuela y todas las verificaciones adicionales
+  const checks = [];
+  if (p.licencia) checks.push(daysUntil(p.licencia));
+  if (p.medico) checks.push(daysUntil(p.medico));
+  if (p.escuela && p.escuela !== 'na') checks.push(daysUntil(p.escuela));
+  (p.verificaciones || []).forEach(v => {
+    if (v.fecha && v.fecha !== 'na') checks.push(daysUntil(v.fecha));
+  });
+  const valid = checks.filter(d => d !== null);
+  if (valid.some(d => d < 0)) return 'vencido';
+  if (valid.some(d => d <= 30)) return 'proximo';
+  return 'ok';
+}
+
+function getPilotoVencimientos(p) {
+  // Retorna lista de items vencidos o por vencer para mostrar al usuario
+  const items = [];
+  const check = (label, fecha) => {
+    if (!fecha || fecha === 'na') return;
+    const d = daysUntil(fecha);
+    if (d === null) return;
+    if (d < 0) items.push({ label, estado: 'VENCIDO', days: d });
+    else if (d <= 30) items.push({ label, estado: `vence en ${d}d`, days: d });
+  };
+  check('Licencia', p.licencia);
+  check('Cert. Médico', p.medico);
+  check('Verif. Escuela', p.escuela);
+  (p.verificaciones || []).forEach(v => check(v.nombre || 'Verificación adicional', v.fecha));
+  return items;
+}
+
 function updatePilotDropdown() {
   const sel = document.getElementById('flight-pilot');
   if (!sel) return;
   const current = sel.value;
   sel.innerHTML = '<option value="">Seleccionar...</option>' +
-    pilotosData.filter(p => p.nombre).map(p => `<option value="${p.nombre}">${p.nombre}</option>`).join('');
+    pilotosData.filter(p => p.nombre).map(p => {
+      const status = getPilotoStatus(p);
+      const prefix = status === 'vencido' ? '🔴 ' : status === 'proximo' ? '🟡 ' : '';
+      const disabled = status === 'vencido' ? ' disabled' : '';
+      return `<option value="${p.nombre}"${disabled}>${prefix}${p.nombre}${status === 'vencido' ? ' (VENCIDO)' : status === 'proximo' ? ' (por vencer)' : ''}</option>`;
+    }).join('');
   sel.value = current;
 }
 
@@ -2926,6 +3019,23 @@ function addFlight() {
     if (hasConflict(fecha, horaInicio, horaFin, aeronave, -1)) {
       alert(`⚠️ ${aeronave} ya tiene un vuelo en ese horario.\n\nVerifica los vuelos del día antes de asignar.`);
       return;
+    }
+  }
+
+  // Validar estado del piloto
+  if (piloto) {
+    const p = pilotosData.find(p => p.nombre === piloto);
+    if (p) {
+      const status = getPilotoStatus(p);
+      if (status === 'vencido') {
+        const items = getPilotoVencimientos(p).filter(i => i.days < 0);
+        alert(`🔴 ${piloto} tiene documentos VENCIDOS:\n\n${items.map(i => `• ${i.label}: ${i.estado}`).join('\n')}\n\nNo se puede agendar este piloto.`);
+        return;
+      }
+      if (status === 'proximo') {
+        const items = getPilotoVencimientos(p);
+        if (!confirm(`🟡 ${piloto} tiene documentos por vencer:\n\n${items.map(i => `• ${i.label}: ${i.estado}`).join('\n')}\n\n¿Deseas agendar de todas formas?`)) return;
+      }
     }
   }
 
@@ -2951,6 +3061,25 @@ function addFlight() {
 
   renderCalendar();
   if (calSelectedDate === fecha) renderDayFlights(fecha);
+}
+
+function updateFlightPilot(globalIdx, newPilot) {
+  if (!flightsData[globalIdx]) return;
+  if (newPilot) {
+    const p = pilotosData.find(p => p.nombre === newPilot);
+    if (p) {
+      const status = getPilotoStatus(p);
+      if (status === 'vencido') {
+        const items = getPilotoVencimientos(p).filter(i => i.days < 0);
+        alert(`🔴 ${newPilot} tiene documentos VENCIDOS:\n\n${items.map(i => `• ${i.label}: ${i.estado}`).join('\n')}\n\nNo se puede asignar este piloto.`);
+        if (calSelectedDate) renderDayFlights(calSelectedDate);
+        return;
+      }
+    }
+  }
+  flightsData[globalIdx].piloto = newPilot;
+  if (db) db.ref('itinerarios').set(flightsData);
+  if (calSelectedDate) renderDayFlights(calSelectedDate);
 }
 
 function updateFlightAc(globalIdx, newAc, dateStr) {

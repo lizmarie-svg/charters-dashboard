@@ -2749,6 +2749,28 @@ function fmt12h(timeStr) {
   return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
 }
 
+function timesToMinutes(t) {
+  if (!t) return null;
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function hasConflict(fecha, horaInicio, horaFin, aeronave, excludeIdx) {
+  if (!aeronave || !horaInicio || !horaFin) return false;
+  const newStart = timesToMinutes(horaInicio);
+  const newEnd = timesToMinutes(horaFin);
+  if (newStart === null || newEnd === null || newStart >= newEnd) return false;
+  return flightsData.some((f, i) => {
+    if (i === excludeIdx) return false;
+    if (f.fecha !== fecha || f.aeronave !== aeronave) return false;
+    const s = timesToMinutes(f.horaInicio || f.hora);
+    const e = timesToMinutes(f.horaFin);
+    if (s === null) return false;
+    const end = e !== null ? e : s + 60; // si no tiene fin, asumir 1 hora
+    return newStart < end && newEnd > s;
+  });
+}
+
 function renderDayFlights(dateStr) {
   const [y, m, d] = dateStr.split('-');
   const label = new Date(parseInt(y), parseInt(m)-1, parseInt(d)).toLocaleDateString('es-PA', { weekday:'long', day:'numeric', month:'long', year:'numeric' }).toUpperCase();
@@ -2762,32 +2784,62 @@ function renderDayFlights(dateStr) {
     return;
   }
 
-  const acOptions = `<option value="">Sin asignar</option>` + fleet.map(a => `<option value="${a.reg}">${a.reg}</option>`).join('');
+  // Agrupar por aeronave (sin asignar = grupo propio)
+  const groups = {};
+  flights.forEach(f => {
+    const key = f.aeronave || '__sin_asignar__';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(f);
+  });
 
-  container.innerHTML = flights.map((f) => {
-    const globalIdx = flightsData.indexOf(f);
-    const horaInicio = f.horaInicio || f.hora || '';
-    const horaFin = f.horaFin || '';
-    const timeStr = horaInicio ? (horaFin ? `${fmt12h(horaInicio)} → ${fmt12h(horaFin)}` : fmt12h(horaInicio)) : '-- : --';
-    const acVal = f.aeronave || '';
-    const acColor_ = acVal ? acColor(acVal) : 'var(--muted)';
-    const acLabel = acVal || 'Sin asignar';
-    return `<div class="flight-card" style="flex-direction:column;align-items:stretch;gap:8px">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <div class="flight-time">${timeStr}</div>
-        <button onclick="deleteFlight(${globalIdx})" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:16px;padding:4px;-webkit-tap-highlight-color:transparent;flex-shrink:0">✕</button>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <select onchange="updateFlightAc(${globalIdx},this.value)" style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;border:1px solid ${acColor_};background:${acVal ? acColor_+'22' : 'var(--panel2)'};color:${acColor_};cursor:pointer;-webkit-tap-highlight-color:transparent">
-          ${fleet.map(a => `<option value="${a.reg}" ${a.reg===acVal?'selected':''}>${a.reg}</option>`).join('')}
-          <option value="" ${!acVal?'selected':''}>Sin asignar</option>
-        </select>
-        <span style="font-family:'IBM Plex Sans',sans-serif;font-size:10px;color:var(--muted)">
-          ${f.piloto ? `👨‍✈️ ${f.piloto}` : ''}${f.piloto && f.estudiante ? ' · ' : ''}${f.estudiante ? `🎓 ${f.estudiante}` : ''}
-        </span>
-      </div>
-    </div>`;
-  }).join('');
+  // Ordenar grupos: aeronaves asignadas primero (por orden de flota), sin asignar al final
+  const fleetOrder = fleet.map(a => a.reg);
+  const sortedKeys = Object.keys(groups).sort((a, b) => {
+    if (a === '__sin_asignar__') return 1;
+    if (b === '__sin_asignar__') return -1;
+    return fleetOrder.indexOf(a) - fleetOrder.indexOf(b);
+  });
+
+  let html = '';
+  sortedKeys.forEach(key => {
+    const isUnassigned = key === '__sin_asignar__';
+    const color = isUnassigned ? 'var(--muted)' : acColor(key);
+    const groupFlights = groups[key];
+
+    html += `<div style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid ${color}40">
+        <span style="font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;color:${color}">${isUnassigned ? 'SIN ASIGNAR' : key}</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">${groupFlights.length} vuelo${groupFlights.length>1?'s':''}</span>
+      </div>`;
+
+    groupFlights.forEach(f => {
+      const globalIdx = flightsData.indexOf(f);
+      const horaInicio = f.horaInicio || f.hora || '';
+      const horaFin = f.horaFin || '';
+      const timeStr = horaInicio ? (horaFin ? `${fmt12h(horaInicio)} → ${fmt12h(horaFin)}` : fmt12h(horaInicio)) : '-- : --';
+      const acVal = f.aeronave || '';
+
+      html += `<div class="flight-card" style="flex-direction:column;align-items:stretch;gap:6px;border-left:3px solid ${color};margin-bottom:6px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div class="flight-time" style="font-size:13px">${timeStr}</div>
+          <button onclick="deleteFlight(${globalIdx})" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:16px;padding:4px;-webkit-tap-highlight-color:transparent;flex-shrink:0">✕</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <select onchange="updateFlightAc(${globalIdx},this.value,'${dateStr}')" style="font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;padding:3px 8px;border-radius:6px;border:1px solid ${color};background:${acVal ? color+'22' : 'var(--panel2)'};color:${color};cursor:pointer;-webkit-tap-highlight-color:transparent">
+            <option value="" ${!acVal?'selected':''}>Sin asignar</option>
+            ${fleet.map(a => `<option value="${a.reg}" ${a.reg===acVal?'selected':''}>${a.reg}</option>`).join('')}
+          </select>
+          <span style="font-family:'IBM Plex Sans',sans-serif;font-size:10px;color:var(--muted)">
+            ${f.piloto ? `👨‍✈️ ${f.piloto}` : ''}${f.piloto && f.estudiante ? ' · ' : ''}${f.estudiante ? `🎓 ${f.estudiante}` : ''}
+          </span>
+        </div>
+      </div>`;
+    });
+
+    html += `</div>`;
+  });
+
+  container.innerHTML = html;
 }
 
 function updatePilotDropdown() {
@@ -2809,11 +2861,18 @@ function addFlight() {
 
   if (!fecha) { alert('La fecha es requerida.'); return; }
 
+  // Validar conflicto de horario si hay aeronave asignada
+  if (aeronave && horaInicio && horaFin) {
+    if (hasConflict(fecha, horaInicio, horaFin, aeronave, -1)) {
+      alert(`⚠️ ${aeronave} ya tiene un vuelo en ese horario.\n\nVerifica los vuelos del día antes de asignar.`);
+      return;
+    }
+  }
+
   const flight = { fecha, horaInicio, horaFin, aeronave, piloto, estudiante, id: Date.now() };
   flightsData.push(flight);
   if (db) db.ref('itinerarios').set(flightsData);
 
-  // Limpiar form (mantener fecha)
   document.getElementById('flight-time-start').value = '';
   document.getElementById('flight-time-end').value = '';
   document.getElementById('flight-ac').value = '';
@@ -2824,8 +2883,20 @@ function addFlight() {
   if (calSelectedDate === fecha) renderDayFlights(fecha);
 }
 
-function updateFlightAc(globalIdx, newAc) {
+function updateFlightAc(globalIdx, newAc, dateStr) {
   if (!flightsData[globalIdx]) return;
+  const f = flightsData[globalIdx];
+
+  // Validar conflicto si se está asignando una aeronave
+  if (newAc && f.horaInicio && f.horaFin) {
+    if (hasConflict(f.fecha, f.horaInicio, f.horaFin, newAc, globalIdx)) {
+      alert(`⚠️ ${newAc} ya tiene un vuelo en ese horario.\n\nNo se puede asignar esta aeronave.`);
+      // Revertir el select visualmente
+      if (calSelectedDate) renderDayFlights(calSelectedDate);
+      return;
+    }
+  }
+
   flightsData[globalIdx].aeronave = newAc;
   if (db) db.ref('itinerarios').set(flightsData);
   renderCalendar();

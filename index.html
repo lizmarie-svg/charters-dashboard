@@ -492,7 +492,7 @@
 
     /* Header compacto */
     .logo-sub { display: none; }
-    .clock { font-size: 14px; letter-spacing: 1px; }
+    .clock { font-size: 11px !important; letter-spacing: 0 !important; }
     .date-line { font-size: 8px; }
     header { padding: 0 8px; gap: 6px; }
     .logo-text { font-size: 10px; letter-spacing: 2px; }
@@ -1396,7 +1396,7 @@ function toggleEmerg(idx) {
 }
 
 function getHoraPanama() {
-  return new Date().toLocaleTimeString('es-PA', {hour:'2-digit',minute:'2-digit',timeZone:'America/Panama',hour12:false});
+  return new Date().toLocaleTimeString('es-PA', {hour:'2-digit',minute:'2-digit',timeZone:'America/Panama',hour12:true});
 }
 function getFechaPanama() {
   return new Date().toLocaleDateString('es-PA', {day:'2-digit',month:'2-digit',year:'numeric',timeZone:'America/Panama'});
@@ -2741,6 +2741,14 @@ function selectDate(dateStr) {
   renderDayFlights(dateStr);
 }
 
+function fmt12h(timeStr) {
+  if (!timeStr) return '';
+  const [h, m] = timeStr.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
 function renderDayFlights(dateStr) {
   const [y, m, d] = dateStr.split('-');
   const label = new Date(parseInt(y), parseInt(m)-1, parseInt(d)).toLocaleDateString('es-PA', { weekday:'long', day:'numeric', month:'long', year:'numeric' }).toUpperCase();
@@ -2760,7 +2768,7 @@ function renderDayFlights(dateStr) {
     const globalIdx = flightsData.indexOf(f);
     const horaInicio = f.horaInicio || f.hora || '';
     const horaFin = f.horaFin || '';
-    const timeStr = horaInicio ? (horaFin ? `${horaInicio} → ${horaFin}` : horaInicio) : '-- : --';
+    const timeStr = horaInicio ? (horaFin ? `${fmt12h(horaInicio)} → ${fmt12h(horaFin)}` : fmt12h(horaInicio)) : '-- : --';
     const acVal = f.aeronave || '';
     const acColor_ = acVal ? acColor(acVal) : 'var(--muted)';
     const acLabel = acVal || 'Sin asignar';
@@ -2834,8 +2842,8 @@ function deleteFlight(idx) {
 // Clock
 function updateClock() {
   const now = new Date();
-  document.getElementById('clock').textContent = now.toLocaleTimeString('es-PA', { hour12: false });
-  document.getElementById('dateStr').textContent = now.toLocaleDateString('es-PA', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('es-PA', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/Panama' });
+  document.getElementById('dateStr').textContent = now.toLocaleDateString('es-PA', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', timeZone: 'America/Panama' }).toUpperCase();
 }
 updateClock(); setInterval(updateClock, 1000);
 

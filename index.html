@@ -212,7 +212,45 @@
   .pct-line { display: flex; justify-content: space-between; margin-top: 5px; }
   .pct-text { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--muted); }
 
-  /* ===== PENDIENTES ===== */
+  /* ===== ITINERARIOS ===== */
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+  .cal-header-cell { font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--muted); text-align:center; padding:4px 0; }
+  .cal-cell {
+    min-height:56px; border-radius:6px; border:1px solid var(--border);
+    background:var(--panel2); padding:3px; cursor:pointer; position:relative;
+    transition:background 0.15s;
+  }
+  .cal-cell:hover { background:var(--dim); }
+  .cal-cell.today { border-color:var(--accent); background:rgba(0,89,179,0.08); }
+  .cal-cell.selected { border-color:var(--accent); background:rgba(0,89,179,0.15); }
+  .cal-cell.other-month { opacity:0.35; }
+  .cal-day-num { font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:700; color:var(--text); }
+  .cal-cell.today .cal-day-num { color:var(--accent); }
+  .cal-dot { width:6px; height:6px; border-radius:50%; display:inline-block; margin:1px; }
+  .cal-dots { display:flex; flex-wrap:wrap; gap:1px; margin-top:2px; }
+  .flight-card {
+    background:var(--panel2); border:1px solid var(--border); border-radius:10px;
+    padding:10px 14px; margin-bottom:8px; display:flex; align-items:center; gap:12px;
+  }
+  .flight-ac-badge {
+    font-family:'Orbitron',sans-serif; font-size:9px; font-weight:700;
+    padding:3px 8px; border-radius:6px; white-space:nowrap; flex-shrink:0;
+    background:rgba(0,89,179,0.12); color:var(--accent);
+  }
+  .flight-info { flex:1; min-width:0; }
+  .flight-time { font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:700; color:var(--text); }
+  .flight-detail { font-family:'IBM Plex Sans',monospace; font-size:10px; color:var(--muted); margin-top:2px; }
+  .add-flight-form { background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:14px; margin-top:12px; }
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .form-field { display:flex; flex-direction:column; gap:4px; }
+  .form-label { font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+  .form-select { background:var(--panel2); border:1px solid var(--dim); border-radius:var(--radius-sm); color:var(--text); font-family:'IBM Plex Sans',sans-serif; font-size:11px; padding:5px 8px; outline:none; width:100%; }
+  .form-select:focus { border-color:var(--accent); }
+  @media (max-width:768px) {
+    .cal-cell { min-height:42px; padding:2px; }
+    .cal-day-num { font-size:9px; }
+    .form-grid { grid-template-columns:1fr; }
+  }
   .pendientes-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
   .alert-row { display:grid; grid-template-columns:1fr auto auto; gap:8px; align-items:center; padding:7px 12px; border-bottom:1px solid var(--border); }
   .alert-row:last-child { border-bottom:none; }
@@ -2532,6 +2570,238 @@ empresaTab.addEventListener('click', () => {
 });
 sidebarEl.appendChild(empresaTab);
 
+// Itinerarios tab
+const itinerariosTab = document.createElement('div');
+itinerariosTab.className = 'aircraft-tab';
+itinerariosTab.innerHTML = '<div class="tab-reg" style="font-size:10px">✈ ITINERARIOS</div>';
+itinerariosTab.addEventListener('click', () => {
+  document.querySelectorAll('.aircraft-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.aircraft-panel').forEach(p => p.classList.remove('active'));
+  itinerariosTab.classList.add('active');
+  document.getElementById('panel-itinerarios').classList.add('active');
+  renderCalendar();
+});
+sidebarEl.appendChild(itinerariosTab);
+
+// ===== ITINERARIOS PANEL =====
+const itinerariosPanel = document.createElement('div');
+itinerariosPanel.className = 'aircraft-panel';
+itinerariosPanel.id = 'panel-itinerarios';
+itinerariosPanel.innerHTML = `
+  <div class="aircraft-header">
+    <div>
+      <div class="aircraft-reg" style="font-size:20px">✈ ITINERARIOS</div>
+      <div class="aircraft-model-line">PROGRAMACIÓN DE VUELOS</div>
+    </div>
+  </div>
+
+  <div class="section-grid-2">
+    <!-- Calendario -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <button onclick="changeMonth(-1)" style="background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;padding:4px 12px;font-size:16px;-webkit-tap-highlight-color:transparent">‹</button>
+        <span id="cal-month-label" style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;color:var(--text)"></span>
+        <button onclick="changeMonth(1)" style="background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;padding:4px 12px;font-size:16px;-webkit-tap-highlight-color:transparent">›</button>
+      </div>
+      <div class="cal-grid" style="margin-bottom:6px">
+        <div class="cal-header-cell">DOM</div>
+        <div class="cal-header-cell">LUN</div>
+        <div class="cal-header-cell">MAR</div>
+        <div class="cal-header-cell">MIÉ</div>
+        <div class="cal-header-cell">JUE</div>
+        <div class="cal-header-cell">VIE</div>
+        <div class="cal-header-cell">SÁB</div>
+      </div>
+      <div class="cal-grid" id="cal-cells"></div>
+    </div>
+
+    <!-- Detalle del día -->
+    <div class="card">
+      <div class="card-title" id="cal-day-title">Selecciona una fecha</div>
+      <div id="cal-day-flights" style="margin-bottom:12px">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);text-align:center;padding:20px 0">Toca una fecha en el calendario</div>
+      </div>
+
+      <!-- Formulario agregar vuelo -->
+      <div class="add-flight-form">
+        <div class="card-title" style="margin-bottom:10px">+ Agregar Vuelo</div>
+        <div class="form-grid">
+          <div class="form-field">
+            <label class="form-label">Fecha</label>
+            <input type="date" id="flight-date" class="maint-input" style="font-size:11px">
+          </div>
+          <div class="form-field">
+            <label class="form-label">Hora</label>
+            <input type="time" id="flight-time" class="maint-input" style="font-size:11px">
+          </div>
+          <div class="form-field">
+            <label class="form-label">Aeronave</label>
+            <select id="flight-ac" class="form-select">
+              <option value="">Seleccionar...</option>
+              ${fleet.map(a => `<option value="${a.reg}">${a.reg} — ${a.model}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-field">
+            <label class="form-label">Piloto</label>
+            <select id="flight-pilot" class="form-select">
+              <option value="">Seleccionar...</option>
+            </select>
+          </div>
+          <div class="form-field" style="grid-column:1/-1">
+            <label class="form-label">Estudiante / Pasajero</label>
+            <input type="text" id="flight-student" class="maint-input" placeholder="Nombre..." style="font-size:11px">
+          </div>
+        </div>
+        <button onclick="addFlight()" style="margin-top:10px;width:100%;padding:8px;background:linear-gradient(135deg,var(--accent2),var(--accent));border:none;border-radius:8px;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">
+          GUARDAR VUELO
+        </button>
+      </div>
+    </div>
+  </div>
+`;
+contentEl.appendChild(itinerariosPanel);
+
+// ===== ITINERARIOS LOGIC =====
+let flightsData = [];
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let calSelectedDate = null;
+
+// Colores por aeronave
+const AC_COLORS = [
+  '#0059b3','#c47000','#006638','#b80f1e','#6a0dad',
+  '#007b8a','#8b4513','#2e8b57','#8b0000','#4682b4'
+];
+function acColor(reg) {
+  const idx = fleet.findIndex(a => a.reg === reg);
+  return AC_COLORS[idx % AC_COLORS.length] || '#0059b3';
+}
+
+function changeMonth(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const label = new Date(calYear, calMonth, 1).toLocaleDateString('es-PA', { month:'long', year:'numeric' }).toUpperCase();
+  document.getElementById('cal-month-label').textContent = label;
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+  // Build map of flights per date
+  const flightsByDate = {};
+  flightsData.forEach(f => {
+    if (!flightsByDate[f.fecha]) flightsByDate[f.fecha] = [];
+    flightsByDate[f.fecha].push(f);
+  });
+
+  const container = document.getElementById('cal-cells');
+  container.innerHTML = '';
+
+  // Empty cells before first day
+  for (let i = 0; i < firstDay; i++) {
+    const empty = document.createElement('div');
+    empty.className = 'cal-cell other-month';
+    container.appendChild(empty);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const cell = document.createElement('div');
+    cell.className = 'cal-cell' + (dateStr === todayStr ? ' today' : '') + (dateStr === calSelectedDate ? ' selected' : '');
+    const flights = flightsByDate[dateStr] || [];
+    const dots = flights.slice(0,6).map(f => `<span class="cal-dot" style="background:${acColor(f.aeronave)}"></span>`).join('');
+    cell.innerHTML = `<div class="cal-day-num">${d}</div><div class="cal-dots">${dots}</div>`;
+    cell.addEventListener('click', () => selectDate(dateStr));
+    container.appendChild(cell);
+  }
+}
+
+function selectDate(dateStr) {
+  calSelectedDate = dateStr;
+  // Update date input in form
+  document.getElementById('flight-date').value = dateStr;
+  // Update selected cell style
+  document.querySelectorAll('.cal-cell').forEach(c => c.classList.remove('selected'));
+  renderCalendar();
+  renderDayFlights(dateStr);
+}
+
+function renderDayFlights(dateStr) {
+  const [y, m, d] = dateStr.split('-');
+  const label = new Date(parseInt(y), parseInt(m)-1, parseInt(d)).toLocaleDateString('es-PA', { weekday:'long', day:'numeric', month:'long', year:'numeric' }).toUpperCase();
+  document.getElementById('cal-day-title').textContent = label;
+
+  const flights = flightsData.filter(f => f.fecha === dateStr).sort((a,b) => (a.hora||'').localeCompare(b.hora||''));
+  const container = document.getElementById('cal-day-flights');
+
+  if (flights.length === 0) {
+    container.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);text-align:center;padding:16px 0">Sin vuelos programados</div>`;
+    return;
+  }
+
+  container.innerHTML = flights.map((f, fi) => {
+    const globalIdx = flightsData.indexOf(f);
+    return `<div class="flight-card">
+      <span class="flight-ac-badge" style="background:${acColor(f.aeronave)}22;color:${acColor(f.aeronave)}">${f.aeronave}</span>
+      <div class="flight-info">
+        <div class="flight-time">${f.hora || '--:--'}</div>
+        <div class="flight-detail">
+          ${f.piloto ? `👨‍✈️ ${f.piloto}` : ''}${f.piloto && f.estudiante ? ' · ' : ''}${f.estudiante ? `🎓 ${f.estudiante}` : ''}
+        </div>
+      </div>
+      <button onclick="deleteFlight(${globalIdx})" style="background:transparent;border:none;color:var(--danger);cursor:pointer;font-size:16px;padding:4px;-webkit-tap-highlight-color:transparent">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function updatePilotDropdown() {
+  const sel = document.getElementById('flight-pilot');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Seleccionar...</option>' +
+    pilotosData.filter(p => p.nombre).map(p => `<option value="${p.nombre}">${p.nombre}</option>`).join('');
+  sel.value = current;
+}
+
+function addFlight() {
+  const fecha = document.getElementById('flight-date').value;
+  const hora = document.getElementById('flight-time').value;
+  const aeronave = document.getElementById('flight-ac').value;
+  const piloto = document.getElementById('flight-pilot').value;
+  const estudiante = document.getElementById('flight-student').value.trim();
+
+  if (!fecha || !aeronave) {
+    alert('Fecha y aeronave son requeridos.');
+    return;
+  }
+
+  const flight = { fecha, hora, aeronave, piloto, estudiante, id: Date.now() };
+  flightsData.push(flight);
+  if (db) db.ref('itinerarios').set(flightsData);
+
+  // Clear form (keep date)
+  document.getElementById('flight-time').value = '';
+  document.getElementById('flight-ac').value = '';
+  document.getElementById('flight-pilot').value = '';
+  document.getElementById('flight-student').value = '';
+
+  renderCalendar();
+  if (calSelectedDate === fecha) renderDayFlights(fecha);
+}
+
+function deleteFlight(idx) {
+  flightsData.splice(idx, 1);
+  if (db) db.ref('itinerarios').set(flightsData);
+  renderCalendar();
+  if (calSelectedDate) renderDayFlights(calSelectedDate);
+}
+
 // Clock
 function updateClock() {
   const now = new Date();
@@ -2680,13 +2950,27 @@ if (db) {
   db.ref('pilotos').on('value', (snapshot) => {
     const saved = snapshot.val();
     if (saved && Array.isArray(saved)) {
-      // No re-renderizar si el usuario está escribiendo en un input de pilotos
       const activeEl = document.activeElement;
       const inPilotosTable = activeEl && activeEl.closest && activeEl.closest('#pilotos-list');
       if (inPilotosTable) return;
       pilotosData.length = 0;
       saved.forEach(p => pilotosData.push(p));
       renderPilotos();
+      updatePilotDropdown();
+    }
+  });
+
+  db.ref('itinerarios').on('value', (snapshot) => {
+    const saved = snapshot.val();
+    flightsData.length = 0;
+    if (saved && Array.isArray(saved)) {
+      saved.forEach(f => flightsData.push(f));
+    }
+    // Re-render calendar if visible
+    const panel = document.getElementById('panel-itinerarios');
+    if (panel && panel.classList.contains('active')) {
+      renderCalendar();
+      if (calSelectedDate) renderDayFlights(calSelectedDate);
     }
   });
 }

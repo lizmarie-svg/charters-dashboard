@@ -1,6 +1,6 @@
 // Service Worker - Fleet Dashboard (Charters Panama)
 // Cache version: bump CACHE_NAME when you deploy changes to force refresh
-const CACHE_NAME = 'fleet-dashboard-v1';
+const CACHE_NAME = 'fleet-dashboard-v3';
 
 const CORE_ASSETS = [
   './',

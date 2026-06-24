@@ -308,11 +308,17 @@
     background: transparent;
     border: none;
     cursor: pointer;
-    padding: 6px;
+    padding: 12px;
     flex-direction: column;
     gap: 5px;
     justify-content: center;
     align-items: center;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    position: relative;
+    z-index: 200;
+    min-width: 44px;
+    min-height: 44px;
   }
   .hamburger-btn span {
     display: block;
@@ -320,7 +326,7 @@
     height: 2px;
     background: #fff;
     border-radius: 2px;
-    transition: all 0.25s;
+    pointer-events: none;
   }
 
   /* Overlay oscuro para cerrar el drawer */
@@ -381,7 +387,6 @@
     .tab-model { display: block; }
     .tab-badge { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); }
 
-    /* Botón cerrar dentro del drawer */
     .drawer-close-btn {
       position: absolute;
       top: 10px; right: 10px;
@@ -392,42 +397,61 @@
       cursor: pointer;
       padding: 4px 8px;
       line-height: 1;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
 
-    /* Contenido principal sin scroll horizontal */
-    .content { padding: 10px; width: 100%; overflow-x: hidden; }
-    .card { padding: 12px; overflow-x: hidden; }
+    /* Contenido sin scroll horizontal */
+    .content { padding: 10px; width: 100%; max-width: 100%; overflow-x: hidden; }
+    .card { padding: 10px; overflow: hidden; }
+    .aircraft-header { flex-direction: column; gap: 8px; }
+    .aircraft-reg { font-size: 18px; }
 
-    .aircraft-header { flex-direction: column; gap: 10px; }
-    .aircraft-reg { font-size: 20px; }
-
-    /* Grids a una sola columna */
+    /* Grids de sección a una columna */
     .section-grid { grid-template-columns: 1fr !important; }
     .section-grid-2 { grid-template-columns: 1fr !important; }
 
-    /* Filas de mantenimiento y documentos: 2 columnas en móvil */
-    .maint-row { grid-template-columns: 1fr auto !important; gap: 6px; }
-    .doc-row { grid-template-columns: 1fr auto !important; gap: 6px; }
-    .emerg-row { grid-template-columns: 1fr auto !important; gap: 6px; }
+    /* Filas de mantenimiento: nombre arriba, fecha + badge abajo */
+    .maint-row {
+      grid-template-columns: 1fr auto !important;
+      grid-template-rows: auto auto;
+      gap: 4px;
+    }
+    .maint-row .maint-input:first-child { grid-column: 1 / -1; }
 
-    /* Badges sin ancho mínimo fijo */
+    /* Filas de documentos: nombre arriba, fecha + badge abajo */
+    .doc-row {
+      grid-template-columns: 1fr auto !important;
+      grid-template-rows: auto auto;
+      gap: 4px;
+    }
+    .doc-row .doc-name-input { grid-column: 1 / -1; }
+    .doc-row .doc-date-input { min-width: 0; }
+
+    /* Filas emergencia */
+    .emerg-row { grid-template-columns: 1fr auto !important; gap: 4px; }
+    .emerg-row .emerg-label { font-size: 10px; }
+
+    /* Badges compactos */
     .doc-status-badge { min-width: 0 !important; }
-    .doc-status-badge-inner { font-size: 8px !important; justify-content: flex-start; }
+    .doc-status-badge-inner { font-size: 8px !important; }
+    .days-badge { font-size: 9px !important; padding: 2px 6px !important; min-width: 36px; }
 
-    /* Inputs de fecha: ancho flexible */
-    .doc-date-input, .maint-input { min-width: 0 !important; width: 100% !important; }
+    /* Inputs flexibles */
+    .doc-date-input, .maint-input, .doc-name-input { min-width: 0 !important; max-width: 100%; box-sizing: border-box; }
 
     /* Header compacto */
     .logo-sub { display: none; }
     .clock { font-size: 14px; letter-spacing: 1px; }
     .date-line { font-size: 8px; }
-    header { padding: 0 12px; gap: 8px; }
-    .logo-text { font-size: 10px; }
+    header { padding: 0 8px; gap: 6px; }
+    .logo-text { font-size: 10px; letter-spacing: 2px; }
+    .header-right { gap: 8px; }
   }
 
   @media (max-width: 480px) {
     .summary-item { flex: 1 1 100%; }
-    .aircraft-reg { font-size: 18px; }
+    .aircraft-reg { font-size: 16px; }
     .section-grid { grid-template-columns: 1fr !important; }
     .section-grid-2 { grid-template-columns: 1fr !important; }
   }

@@ -6,7 +6,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <!-- v=20260521-2 -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Fleet Dashboard</title>
 
 <!-- PWA -->
@@ -500,11 +500,13 @@
 
     /* Header compacto */
     .logo-sub { display: none; }
-    .clock { font-size: 11px !important; letter-spacing: 0 !important; }
-    .date-line { font-size: 8px; }
-    header { padding: 0 8px; gap: 6px; }
-    .logo-text { font-size: 10px; letter-spacing: 2px; }
-    .header-right { gap: 8px; }
+    .logo-icon { width: 28px !important; height: 28px !important; font-size: 12px !important; }
+    .logo-text { font-size: 9px !important; letter-spacing: 1px !important; }
+    .clock { font-size: 12px !important; letter-spacing: 0 !important; font-weight: 700; }
+    .date-line { display: none; }
+    .status-dot { width: 7px !important; height: 7px !important; }
+    header { padding: 0 8px; gap: 6px; height: 52px !important; }
+    .header-right { gap: 6px; }
   }
 
   @media (max-width: 480px) {

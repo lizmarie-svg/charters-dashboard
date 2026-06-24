@@ -2410,28 +2410,25 @@ function resolverHoras(reg, item) {
   if (idx === -1) return;
   const d = state[idx];
 
-  // Determinar el límite y valor actual según el tipo
+  // Determinar límite y valor actual según tipo
   let limiteActual = 50;
   let valorActual = 0;
-  if (item.includes('50 hrs')) { limiteActual = 50; valorActual = parseFloat(d.horas_acum_50 || 0); }
-  else if (item.includes('100 hrs')) { limiteActual = 100; valorActual = parseFloat(d.horas_acum_100 || d.horas_limite || 0); }
-  else if (item === 'Motor' || item === 'Motor 1') { limiteActual = parseFloat(d.limite_motor || 2000); valorActual = parseFloat(d.ciclos_totales || 0); }
+  if (item.includes('50 hrs'))        { limiteActual = 50;   valorActual = parseFloat(d.horas_acum_50 || 0); }
+  else if (item.includes('100 hrs'))  { limiteActual = 100;  valorActual = parseFloat(d.horas_acum_100 || d.horas_limite || 0); }
+  else if (item === 'Motor' || item === 'Motor 1')   { limiteActual = parseFloat(d.limite_motor || 2000);  valorActual = parseFloat(d.ciclos_totales || 0); }
   else if (item === 'Hélices' || item === 'Motor 2') { limiteActual = parseFloat(d.limite_helice || 2000); valorActual = parseFloat(d.ciclos_limite || 0); }
   else if (item === 'Hélice 1') { limiteActual = parseFloat(d.helice1_limite || 2000); valorActual = parseFloat(d.helice1_ciclos || 0); }
   else if (item === 'Hélice 2') { limiteActual = parseFloat(d.helice2_limite || 2000); valorActual = parseFloat(d.helice2_ciclos || 0); }
 
-  // Pedir horas exactas a las que se realizó el mantenimiento
-  const input = prompt(`${reg} — ${item}\n\nContador actual: ${valorActual.toFixed(1)} HV\nLímite: ${limiteActual} HV\n\n¿A cuántas horas exactas se realizó el mantenimiento?\n(Deja en blanco para resetear a 0)`);
-  if (input === null) return; // canceló
+  // Remanente = horas acumuladas - límite (lo que se voló de más después del límite)
+  // Si el mantenimiento se hizo antes del límite, remanente = 0
+  const remanente = Math.max(0, valorActual - limiteActual).toFixed(1);
 
-  const horasAlMomento = input.trim() === '' ? limiteActual : parseFloat(input.replace(',', '.'));
-  if (isNaN(horasAlMomento)) { alert('Valor inválido.'); return; }
+  const msg = parseFloat(remanente) > 0
+    ? `${reg} — ${item}\n\nContador actual: ${valorActual.toFixed(1)} HV\nLímite: ${limiteActual} HV\nRemanente a cargar al nuevo ciclo: ${remanente} HV\n\n¿Confirmar?`
+    : `${reg} — ${item}\n\nContador actual: ${valorActual.toFixed(1)} HV\nLímite: ${limiteActual} HV\nEl mantenimiento se realizó antes del límite.\nNuevo ciclo arranca en 0.0 HV.\n\n¿Confirmar?`;
 
-  // Remanente = horas acumuladas al momento del mantenimiento - límite
-  // Si se hizo a 49.3 de 50 → remanente = max(0, 49.3 - 50) = 0 (no llegó)
-  // Si se hizo a 51.2 de 50 → remanente = 51.2 - 50 = 1.2 (se pasó)
-  // Siempre el nuevo contador arranca en: valorActual - horasAlMomento (horas acumuladas después del mantenimiento)
-  const remanente = Math.max(0, parseFloat(valorActual.toFixed(1)) - horasAlMomento).toFixed(1);
+  if (!confirm(msg)) return;
 
   if (item === 'Motor' || item === 'Motor 1') {
     d.ciclos_totales = remanente;
@@ -2456,12 +2453,13 @@ function resolverHoras(reg, item) {
     updateVencBar(tipo, idx, remanente, limiteActual);
   }
   else if (item.includes('50 hrs')) {
-    d.horas_acum_50 = remanente;
-    d.horas_totales = remanente;
+    // Solo resetear el contador de 50 hrs — el de 100 hrs sigue acumulando
+    d.horas_acum_50 = '0';
+    d.horas_totales = d.horas_acum_50;
     const a50 = document.getElementById('acum50-'+idx);
     const pb50 = document.getElementById('pb-50-'+idx);
-    if(a50) a50.textContent = parseFloat(remanente).toFixed(1) + ' HV';
-    if(pb50) { pb50.style.width = Math.min(100, parseFloat(remanente)/50*100) + '%'; pb50.className = 'progress-fill ' + (parseFloat(remanente)/50*100>=80?'fill-danger':'fill-ok'); }
+    if(a50) a50.textContent = '0.0 HV';
+    if(pb50) { pb50.style.width = '0%'; pb50.className = 'progress-fill fill-ok'; }
   }
   else if (item.includes('100 hrs')) {
     d.horas_acum_50 = remanente;
@@ -2473,12 +2471,11 @@ function resolverHoras(reg, item) {
     const a100 = document.getElementById('acum100-'+idx);
     const pb100 = document.getElementById('pb-100-'+idx);
     if(a50) a50.textContent = parseFloat(remanente).toFixed(1) + ' HV';
-    if(pb50) { pb50.style.width = Math.min(100, parseFloat(remanente)/100*100) + '%'; pb50.className = 'progress-fill ' + (parseFloat(remanente)/100*100>=80?'fill-danger':'fill-ok'); }
+    if(pb50) { pb50.style.width = Math.min(100,parseFloat(remanente)/100*100)+'%'; pb50.className='progress-fill '+(parseFloat(remanente)/100*100>=80?'fill-danger':'fill-ok'); }
     if(a100) a100.textContent = parseFloat(remanente).toFixed(1) + ' HV';
-    if(pb100) { pb100.style.width = Math.min(100, parseFloat(remanente)/100*100) + '%'; pb100.className = 'progress-fill ' + (parseFloat(remanente)/100*100>=80?'fill-danger':'fill-ok'); }
+    if(pb100) { pb100.style.width = Math.min(100,parseFloat(remanente)/100*100)+'%'; pb100.className='progress-fill '+(parseFloat(remanente)/100*100>=80?'fill-danger':'fill-ok'); }
   }
 
-  // Resetear estatus
   d.estatus_label = '';
   d.status = 'operativo';
   const sel2 = document.getElementById('status-' + idx);
@@ -2486,10 +2483,6 @@ function resolverHoras(reg, item) {
   updateEstatusBadge(idx, 'operativo', '');
   savePanel(idx);
   setTimeout(() => buildResumen(), 500);
-
-  if (parseFloat(remanente) > 0) {
-    alert(`✅ Mantenimiento registrado.\n\nEl contador arranca en ${parseFloat(remanente).toFixed(1)} HV (horas acumuladas después del mantenimiento).`);
-  }
 }
 
 // Resolver doc — actualiza fecha y guarda

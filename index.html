@@ -212,7 +212,10 @@
   .pct-line { display: flex; justify-content: space-between; margin-top: 5px; }
   .pct-text { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--muted); }
 
-  /* ===== MAINTENANCE ROWS ===== */
+  /* ===== PENDIENTES ===== */
+  .pendientes-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+  .alert-row { display:grid; grid-template-columns:1fr auto auto; gap:8px; align-items:center; padding:7px 12px; border-bottom:1px solid var(--border); }
+  .alert-row:last-child { border-bottom:none; }
   .maint-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
   .maint-row:last-child { border-bottom: none; }
   .maint-input {
@@ -400,6 +403,15 @@
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
     }
+
+    /* Pendientes: 1 columna en móvil, filas verticales */
+    .pendientes-grid { grid-template-columns: 1fr !important; }
+    .alert-row {
+      grid-template-columns: 1fr !important;
+      gap: 6px;
+      padding: 10px 12px;
+    }
+    .alert-row > span { justify-self: start; }
 
     /* Contenido sin scroll horizontal */
     .content { padding: 10px; width: 100%; max-width: 100%; overflow-x: hidden; }
@@ -2294,8 +2306,8 @@ function buildResumen() {
     return ia - ib;
   });
 
-  // Build two-column grid layout
-  let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">';
+  // Build layout — 2 columnas en desktop, 1 en móvil
+  let html = '<div class="pendientes-grid">';
   sortedRegs.forEach(reg => {
     const items = byReg[reg];
     const total = items.length;
@@ -2341,9 +2353,9 @@ function buildResumen() {
            <div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);margin-top:2px">${item.item}</div>`
         : `<div style="font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted)">${item.cat}</div>
            <div style="font-family:'IBM Plex Sans',sans-serif;font-size:11px;font-weight:700;color:var(--text);margin-top:2px">${item.item}</div>`;
-      html += `<div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:7px 12px;border-bottom:1px solid var(--border);background:${bg}">
+      html += `<div class="alert-row" style="background:${bg}">
         <div>${rowLabel}</div>
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:${color};font-weight:700">${item.detail}</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:${color};font-weight:700;white-space:nowrap">${item.detail}</span>
         ${resolveHtml}
       </div>`;
     });
